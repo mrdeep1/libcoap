@@ -96,6 +96,10 @@ typedef struct oscore_ctx_t oscore_ctx_t;
 #include "oscore/oscore_crypto.h"
 #endif /* COAP_OSCORE_SUPPORT || COAP_WS_SUPPORT */
 
+#if COAP_OSCORE_EDHOC_SUPPORT
+/* Specific OSCORE EDHOC .h files */
+#include "oscore/oscore_edhoc.h"
+#endif /* COAP_OSCORE_EDHOC_SUPPORT */
 /* Specifically defined internal .h files */
 #include "coap_asn1_internal.h"
 #include "coap_async_internal.h"

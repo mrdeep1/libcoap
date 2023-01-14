@@ -1144,7 +1144,6 @@ coap_send_pdu(coap_session_t *session, coap_pdu_t *pdu, coap_queue_t *node) {
   if (bytes_written >= 0 && pdu->type == COAP_MESSAGE_CON &&
       COAP_PROTO_NOT_RELIABLE(session->proto))
     session->con_active++;
-
   return bytes_written;
 }
 
@@ -1456,6 +1455,118 @@ coap_check_send_need_lg_crcv(coap_session_t *session, coap_pdu_t *pdu) {
 }
 #endif /* COAP_CLIENT_SUPPORT */
 
+#if COAP_OSCORE_EDHOC_SUPPORT
+#if COAP_CLIENT_SUPPORT
+static coap_mid_t
+coap_start_edhoc(coap_session_t *session, coap_pdu_t *pdu) {
+  edhoc_ctx_t *edhoc_ctx = session->edhoc_ctx;
+  coap_mid_t mid = COAP_INVALID_MID;
+
+  while ( *&edhoc_ctx->state != EDHOC_CONNECTED) {
+    /* Iterate through EDHOC protocol to fill in Common Context etc. */
+    coap_binary_t *next_msg;
+    coap_pdu_t *edhoc_pdu;
+    uint8_t token[8];
+    size_t tok_len;
+    coap_opt_iterator_t opt_iter;
+    coap_opt_t *option;
+    unsigned ref;
+    int timeout_ms = 5000;
+
+    if ((next_msg = edhoc_oscore_setup(session)) == NULL) {
+      coap_log_warn(
+          "OSCORE: Unable to initiate EDHOC\n");
+      goto edhoc_fail;
+    }
+    /*
+     * Need to send PDU with given message
+     * Need to maintain HOST, PORT, PROXY_SCHEME and PROXY_URI options
+     * from requesting PDU and send as POST to .well-known/edhoc
+     */
+    edhoc_pdu = coap_pdu_init(COAP_MESSAGE_CON, COAP_REQUEST_CODE_POST,
+                              coap_new_message_id_lkd(session),
+                              coap_session_max_pdu_size_lkd(session));
+    if (edhoc_pdu == NULL) {
+      goto edhoc_fail;
+    }
+    coap_session_new_token(session, &tok_len, token);
+    coap_add_token(edhoc_pdu, tok_len, token);
+    coap_option_iterator_init(pdu, &opt_iter, COAP_OPT_ALL);
+    while ((option = coap_option_next(&opt_iter))) {
+      switch (opt_iter.number) {
+      case COAP_OPTION_URI_HOST:
+      case COAP_OPTION_URI_PORT:
+      case COAP_OPTION_PROXY_SCHEME:
+      case COAP_OPTION_PROXY_URI:
+        if (!coap_add_option(edhoc_pdu, opt_iter.number,
+                             coap_opt_length(option),
+                             coap_opt_value(option))) {
+          coap_delete_pdu_lkd(edhoc_pdu);
+          goto edhoc_fail;
+        }
+        break;
+      default:
+        break;
+      }
+    }
+    /* Add in .well-known/edhoc */
+    if (!coap_insert_option(edhoc_pdu, COAP_OPTION_URI_PATH,
+                            sizeof(".well-known")-1,
+                            (const uint8_t *)".well-known")) {
+      coap_delete_pdu_lkd(edhoc_pdu);
+      goto edhoc_fail;
+    }
+    if (!coap_insert_option(edhoc_pdu, COAP_OPTION_URI_PATH,
+                            sizeof("edhoc")-1, (const uint8_t *)"edhoc")) {
+      coap_delete_pdu_lkd(edhoc_pdu);
+      goto edhoc_fail;
+    }
+
+    if (coap_add_data(edhoc_pdu, next_msg->length, next_msg->s) == 0) {
+      coap_delete_pdu_lkd(edhoc_pdu);
+      goto edhoc_fail;
+    }
+    coap_delete_binary(next_msg);
+
+    session->doing_first = 1;
+    if ((mid = coap_send_internal(session, edhoc_pdu, NULL)) == COAP_INVALID_MID) {
+      goto edhoc_fail;
+    }
+
+#ifndef WITH_LWIP
+    /* Need to wait for EDHOC response */
+    ref = ++session->ref;
+    while (*(&session->doing_first) != 0) {
+      int result = coap_io_process_lkd(session->context, 1000);
+
+      if (result < 0) {
+        session->doing_first = 0;
+        coap_session_release_lkd(session);
+        return COAP_INVALID_MID;
+      }
+      if (result <= timeout_ms) {
+        timeout_ms -= result;
+      } else {
+        if (*(&session->doing_first) == 1 && ref > session->ref) {
+          /* Timeout failure of some sort with first request */
+        }
+        session->doing_first = 0;
+      }
+#endif /* ! WITH_LWIP */
+    }
+
+  }
+  session->oscore_encryption = 1;
+  return mid;
+
+edhoc_fail:
+  session->doing_first = 0;
+  coap_session_release_lkd(session);
+  return COAP_INVALID_MID;
+}
+#endif /* HAVE_CLIENT_SUPPORT */
+#endif /* COAP_OSCORE_EDHOC_SUPPORT */
+
 COAP_API coap_mid_t
 coap_send(coap_session_t *session, coap_pdu_t *pdu) {
   coap_mid_t mid;
@@ -1542,6 +1653,26 @@ coap_send_lkd(coap_session_t *session, coap_pdu_t *pdu) {
   /* A lot of the reliable code assumes type is CON */
   if (COAP_PROTO_RELIABLE(session->proto) && pdu->type != COAP_MESSAGE_CON)
     pdu->type = COAP_MESSAGE_CON;
+
+#if COAP_OSCORE_EDHOC_SUPPORT
+  if (session->type == COAP_SESSION_TYPE_CLIENT && session->doing_first) {
+    if (session->edhoc_ctx != NULL) {
+      /* Initial EDHOC key exchange set up */
+      if (coap_start_edhoc(session, pdu) == COAP_INVALID_MID) {
+        coap_delete_pdu_lkd(pdu);
+        return COAP_INVALID_MID;
+      }
+      session->doing_first = 0;
+    }
+  }
+#endif /* COAP_OSCORE_EDHOC_SUPPORT */
+  /*
+   * If this is not the first client request and are waiting for a response
+   * to the first client request, then delay sending out this next request
+   * until all is properly established.
+   */
+  if (!coap_client_delay_first(session))
+    return COAP_INVALID_MID;
 
 #if COAP_OSCORE_SUPPORT
   if (session->oscore_encryption) {
@@ -4836,6 +4967,8 @@ coap_event_name(coap_event_t event) {
     return "COAP_EVENT_OSCORE_INTERNAL_ERROR";
   case COAP_EVENT_OSCORE_DECODE_ERROR:
     return "COAP_EVENT_OSCORE_DECODE_ERROR";
+  case COAP_EVENT_OSCORE_SIGNATURE_FAILURE:
+    return "COAP_EVENT_OSCORE_SIGNATURE_FAILURE";
   case COAP_EVENT_WS_PACKET_SIZE:
     return "COAP_EVENT_WS_PACKET_SIZE";
   case COAP_EVENT_WS_CONNECTED:
@@ -4885,6 +5018,7 @@ coap_handle_event_lkd(coap_context_t *context, coap_event_t event,
     case COAP_EVENT_OSCORE_NO_SECURITY:
     case COAP_EVENT_OSCORE_INTERNAL_ERROR:
     case COAP_EVENT_OSCORE_DECODE_ERROR:
+    case COAP_EVENT_OSCORE_SIGNATURE_FAILURE:
     case COAP_EVENT_WS_PACKET_SIZE:
     case COAP_EVENT_WS_CLOSED:
     case COAP_EVENT_BAD_PACKET:

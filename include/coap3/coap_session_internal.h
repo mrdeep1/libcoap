@@ -220,6 +220,9 @@ struct coap_session_t {
   coap_mid_t remote_test_mid;     /**< mid used for checking remote
                                        support */
   uint32_t max_token_size;        /**< Largest token size supported RFC8974 */
+#if COAP_OSCORE_EDHOC_SUPPORT
+  edhoc_ctx_t *edhoc_ctx;         /**< EDHOC startup information */
+#endif /* COAP_OSCORE_EDHOC_SUPPORT */
   uint64_t tx_token;              /**< Next token number to use */
   coap_bin_const_t *last_token;   /** last token used to make a request */
   coap_bin_const_t *echo;         /**< Echo value to send with next request */

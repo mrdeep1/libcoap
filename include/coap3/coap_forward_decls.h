@@ -59,6 +59,14 @@ typedef struct coap_lg_srcv_t coap_lg_srcv_t;
 typedef struct coap_cache_entry_t coap_cache_entry_t;
 typedef struct coap_cache_key_t coap_cache_key_t;
 
+/* ************* coap_crypto_internal.h ***************** */
+
+/*
+ * Crypto information.
+ */
+typedef struct coap_crypto_pub_key_t coap_crypto_pub_key_t;
+typedef struct coap_crypto_pri_key_t coap_crypto_pri_key_t;
+
 /* ************* coap_io_internal.h ***************** */
 
 /**
@@ -81,6 +89,8 @@ typedef struct coap_queue_t coap_queue_t;
  * OSCORE information.
  */
 typedef struct coap_oscore_conf_t coap_oscore_conf_t;
+typedef struct coap_oscore_snd_conf_t coap_oscore_snd_conf_t;
+typedef struct coap_oscore_rcp_conf_t coap_oscore_rcp_conf_t;
 
 /* ************* coap_pdu_internal.h ***************** */
 

@@ -25,6 +25,9 @@ libcoap_OSCORE_sources = \
   src/oscore/oscore_cose.c \
   src/oscore/oscore_crypto.c
 
+libcoap_EDHOC_sources = \
+  src/oscore/oscore_edhoc.c
+
 ## Additional files for the distribution archive
 EXTRA_DIST = \
   BUILDING \
@@ -128,6 +131,7 @@ EXTRA_DIST = \
   include/oscore/oscore_context.h \
   include/oscore/oscore_cose.h \
   include/oscore/oscore_crypto.h \
+  include/oscore/oscore_edhoc.h \
   include/oscore/oscore.h \
   src/coap_io_contiki.c \
   src/coap_io_lwip.c \
@@ -161,6 +165,13 @@ if !COAP_OSCORE_SUPPORT
 EXTRA_DIST += $(libcoap_OSCORE_sources)
 
 endif # !COAP_OSCORE_SUPPORT
+
+# This is a mirror of files depending on COAP_OSCORE_EDHOC_SUPPORT included in src as per
+# libcoap_@LIBCOAP_NAME_SUFFIX@_la_SOURCES
+if !COAP_OSCORE_EDHOC_SUPPORT
+EXTRA_DIST += $(libcoap_EDHOC_sources)
+
+endif # !COAP_OSCORE_EDHOC_SUPPORT
 
 AM_CFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include $(WARNING_CFLAGS) \
             $(DTLS_CFLAGS) -std=c99 $(EXTRA_CFLAGS) \
@@ -226,6 +237,11 @@ if COAP_OSCORE_SUPPORT
 libcoap_@LIBCOAP_NAME_SUFFIX@_la_SOURCES += $(libcoap_OSCORE_sources)
 
 endif # COAP_OSCORE_SUPPORT
+
+if COAP_OSCORE_EDHOC_SUPPORT
+libcoap_@LIBCOAP_NAME_SUFFIX@_la_SOURCES += $(libcoap_EDHOC_sources)
+
+endif # COAP_OSCORE_EDHOC_SUPPORT
 
 ## Define the list of public header files and their install location.
 ## The API version is appended to the install folder to being able to

@@ -881,6 +881,40 @@ fi
 AM_CONDITIONAL(COAP_OSCORE_SUPPORT, [test "x$build_oscore" = "xyes"])
 
 # configure options
+# __OSCORE_GROUP_
+# Support for Object Security according to draft-ietf-core-oscore-groupcomm
+AC_ARG_ENABLE([oscore-group],
+              [AS_HELP_STRING([--enable-oscore-group],
+                              [Enable building with Group OSCORE support (Experimental) [default=no]])],
+              [build_oscore_group="$enableval"],
+              [build_oscore_group="yes"])
+
+if test "x$build_oscore_group" = "xyes"; then
+    if test "x$build_oscore" = "xno"; then
+        AC_MSG_ERROR([--enable-oscore-group requires --enable-oscore])
+    fi
+    AC_DEFINE(COAP_OSCORE_GROUP_SUPPORT, [1], [Define to build with Group OSCORE support])
+fi
+AM_CONDITIONAL(COAP_OSCORE_GROUP_SUPPORT, [test "x$build_oscore_group" = "xyes"])
+
+# configure options
+# __OSCORE_EDHOC_
+# Support for Object Security according to draft-ietf-core-oscore-edhoc
+AC_ARG_ENABLE([oscore-edhoc],
+              [AS_HELP_STRING([--enable-oscore-edhoc],
+                              [Enable building with Group OSCORE EDHOC (Experimental) [default=no]])],
+              [build_oscore_edhoc="$enableval"],
+              [build_oscore_edhoc="yes"])
+
+if test "x$build_oscore_edhoc" = "xyes"; then
+    if test "x$build_oscore" = "xno"; then
+        AC_MSG_ERROR([--enable-oscore-edhoc requires --enable-oscore])
+    fi
+    AC_DEFINE(COAP_OSCORE_EDHOC_SUPPORT, [1], [Define to build with OSCORE EDHOC support])
+fi
+AM_CONDITIONAL(COAP_OSCORE_EDHOC_SUPPORT, [test "x$build_oscore_edhoc" = "xyes"])
+
+# configure options
 # __tests__
 AC_ARG_ENABLE([tests],
               [AS_HELP_STRING([--enable-tests],
@@ -1503,6 +1537,16 @@ if test "x$build_oscore" != "xno"; then
     AC_MSG_RESULT([      enable OSCORE support          : "yes"])
 else
     AC_MSG_RESULT([      enable OSCORE support          : "no"])
+fi
+if test "x$build_oscore_group" != "xno"; then
+    AC_MSG_RESULT([      enable Group OSCORE            : "yes"])
+else
+    AC_MSG_RESULT([      enable Group OSCORE            : "no"])
+fi
+if test "x$build_oscore_group" != "xno"; then
+    AC_MSG_RESULT([      enable OSCORE EDHOC            : "yes"])
+else
+    AC_MSG_RESULT([      enable OSCORE EDHOC            : "no"])
 fi
 if test "x$build_q_block" != "xno"; then
     AC_MSG_RESULT([      enable Q-Block support         : "yes"])
