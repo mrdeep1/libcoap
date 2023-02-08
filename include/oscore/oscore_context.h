@@ -49,6 +49,7 @@
 #define _OSCORE_CONTEXT_H
 
 #include "coap3/coap_uthash_internal.h"
+#include "oscore/oscore_cose.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,10 +61,8 @@ extern "C" {
  * @{
  */
 
-#define CONTEXT_KEY_LEN         16
 #define TOKEN_SEQ_NUM           2  /* to be set by application */
 #define EP_CTX_NUM              10 /* to be set by application */
-#define CONTEXT_INIT_VECT_LEN   13
 #define CONTEXT_SEQ_LEN         sizeof(uint64_t)
 
 #define ED25519_PRIVATE_KEY_LEN 32
@@ -83,11 +82,21 @@ typedef struct oscore_sender_ctx_t oscore_sender_ctx_t;
 typedef struct oscore_recipient_ctx_t oscore_recipient_ctx_t;
 typedef struct oscore_association_t oscore_association_t;
 
+#if COAP_OSCORE_GROUP_SUPPORT
+typedef enum {
+  OSCORE_AUTH_CRED_UNKNOWN = 0,
+  OSCORE_AUTH_CRED_CWT,
+  OSCORE_AUTH_CRED_CCS,
+  OSCORE_AUTH_CRED_X509,
+  OSCORE_AUTH_CRED_C509
+} oscore_auth_cred_t;
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
+
 struct oscore_ctx_t {
+  struct oscore_ctx_t *next;
   /* RFC8613 3.1 */
   cose_alg_t aead_alg;             /**< Set to one of COSE_ALGORITHM_AES* */
   cose_hkdf_alg_t hkdf_alg;        /**< Set to one of COSE_HKDF_ALG_* */
-  struct oscore_ctx_t *next;
   coap_bin_const_t *master_secret;
   coap_bin_const_t *master_salt;
   coap_bin_const_t *id_context; /**< contains GID in case of group */
@@ -105,7 +114,23 @@ struct oscore_ctx_t {
   coap_oscore_save_seq_num_t save_seq_num_func; /**< Called every seq num
                                                      change */
   void *save_seq_num_func_param; /**< Passed to save_seq_num_func() */
+#if COAP_OSCORE_GROUP_SUPPORT
+  /* RFCxxxx 2. */
+  oscore_auth_cred_t auth_cred_fmt; /**< Authentication credentials format */
+  coap_crypto_cred_t *gm_cred; /**< Group Manager Credentials */
+  cose_alg_t alg_group_enc;       /**< Group Encryption Algorithm */
+  cose_alg_t alg_signature;       /**< Group Signature Algorithm */
+  coap_bin_const_t *sign_enc_key; /**< Group Signature Encryption Key */
+  cose_alg_t alg_pairwise_key_agreement; /**< Pairwise Agreement Algorithm */
+//  coap_bin_const_t *group_name;    /**< The name of the OSCORE group */
+  coap_bin_const_t *sign_params; /**< binary CBOR array */
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
 };
+
+typedef struct oscore_pw_chain_t {
+  struct oscore_pw_chain_t *next;
+  coap_bin_const_t *pw_sender_key;
+} oscore_pw_chain_t;
 
 struct oscore_sender_ctx_t {
   /* RFC8613 3.1 */
@@ -114,6 +139,14 @@ struct oscore_sender_ctx_t {
   uint64_t seq;            /**< Sender Sequence Number */
   /* Tracking */
   uint64_t next_seq; /**< Used for ssn_freq updating */
+#if COAP_OSCORE_GROUP_SUPPORT
+  /* RFCxxxx 2. */
+  int group_mode;          /**< 1 if group mode being used else 0 */
+  int pairwise_mode;       /**< 1 if pairwise mode being used else 0 */
+  coap_crypto_pri_key_t *my_private_key;
+  coap_crypto_cred_t *sender_cred;
+  oscore_pw_chain_t *pw_sender_key_chain;
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
 };
 
 struct oscore_recipient_ctx_t {
@@ -131,6 +164,12 @@ struct oscore_recipient_ctx_t {
   uint8_t echo_value[8];
   uint8_t initial_state;
   uint8_t silent_server;
+  oscore_mode_t mode;
+#if COAP_OSCORE_GROUP_SUPPORT
+  /* RFCxxxx 2. */
+  coap_crypto_cred_t *rem_cred;
+  coap_bin_const_t *pw_rem_recipient_key;
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
 };
 
 #define OSCORE_ASSOCIATIONS_ADD(r, obj)                                        \
@@ -223,6 +262,8 @@ oscore_recipient_ctx_t *oscore_add_recipient(oscore_ctx_t *ctx,
 int oscore_delete_recipient(oscore_ctx_t *osc_ctx, coap_bin_const_t *rid);
 
 void oscore_free_sender(oscore_sender_ctx_t *snd_ctx);
+
+void oscore_enter_context(coap_context_t *c_context, oscore_ctx_t *osc_ctx);
 
 uint8_t oscore_bytes_equal(uint8_t *a_ptr,
                            uint8_t a_len,
