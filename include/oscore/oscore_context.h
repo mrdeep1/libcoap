@@ -50,6 +50,7 @@
 
 #include "coap3/coap_internal.h"
 #include "coap3/coap_uthash_internal.h"
+#include "oscore/oscore_cose.h"
 #include <stdint.h>
 
 /**
@@ -58,10 +59,8 @@
  * @{
  */
 
-#define CONTEXT_KEY_LEN         16
 #define TOKEN_SEQ_NUM           2  /* to be set by application */
 #define EP_CTX_NUM              10 /* to be set by application */
-#define CONTEXT_INIT_VECT_LEN   13
 #define CONTEXT_SEQ_LEN         sizeof(uint64_t)
 
 #define ED25519_PRIVATE_KEY_LEN 32
@@ -90,9 +89,8 @@ struct oscore_ctx_t {
   coap_bin_const_t *id_context; /**< contains GID in case of group */
   oscore_sender_ctx_t *sender_context;
   oscore_recipient_ctx_t *recipient_chain;
-  cose_alg_t aead_alg;
-  cose_hkdf_alg_t hkdf_alg;
-  oscore_mode_t mode;
+  cose_alg_t aead_alg;             /**< Set to one of COSE_ALGORITHM_AES* */
+  cose_hkdf_alg_t hkdf_alg;        /**< Set to one of COSE_HKDF_ALG_* */
   uint8_t rfc8613_b_1_2; /**< 1 if rfc8613 B.1.2 enabled else 0 */
   uint8_t rfc8613_b_2;   /**< 1 if rfc8613 B.2 protocol else 0 */
   uint32_t ssn_freq;     /**< Sender Seq Num update frequency */
@@ -100,6 +98,15 @@ struct oscore_ctx_t {
   coap_oscore_save_seq_num_t save_seq_num_func; /**< Called every seq num
                                                      change */
   void *save_seq_num_func_param; /**< Passed to save_seq_num_func() */
+#if COAP_OSCORE_GROUP_SUPPORT
+  coap_bin_const_t *group_name;    /**< The name of the OSCORE group */
+  coap_crypto_pub_key_t *gm_public_key; /**< Group Manager Public Key */
+  coap_bin_const_t *sign_params; /**< binary CBOR array */
+  cose_alg_t group_enc_alg;     /**< Group Encryption Algorithm */
+  cose_alg_t sign_alg;          /**< Signature Algorithm */
+  coap_bin_const_t *sign_enc_key; /**< Signature Encryption Key */
+  cose_curve_t pw_key_agree_alg; /**< Pairwise Agreement Algorithm */
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
 };
 
 struct oscore_sender_ctx_t {
@@ -107,6 +114,13 @@ struct oscore_sender_ctx_t {
   uint64_t next_seq; /**< Used for ssn_freq updating */
   coap_bin_const_t *sender_key;
   coap_bin_const_t *sender_id;
+#if COAP_OSCORE_GROUP_SUPPORT
+  /* addition for group communication */
+  int group_mode;          /**< 1 if group mode supported else 0 */
+  int pairwise_mode;       /**< 1 if pairwise mode supported else 0 */
+  coap_crypto_pub_key_t *g_public_key;
+  coap_crypto_pri_key_t *g_private_key;
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
 };
 
 struct oscore_recipient_ctx_t {
@@ -122,6 +136,13 @@ struct oscore_recipient_ctx_t {
   coap_bin_const_t *recipient_id;
   uint8_t echo_value[8];
   uint8_t initial_state;
+  oscore_mode_t mode;
+#if COAP_OSCORE_GROUP_SUPPORT
+  /* addition for group communication */
+  coap_crypto_pub_key_t *g_public_key;
+  coap_bin_const_t *pw_sender_key;
+  coap_bin_const_t *pw_recipient_key;
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
 };
 
 #define OSCORE_ASSOCIATIONS_ADD(r, obj)                                        \
@@ -199,16 +220,21 @@ int oscore_remove_context(coap_context_t *c_context, oscore_ctx_t *osc_ctx);
  * oscore_add_recipient - add in recipient information
  *
  * @param ctx The OSCORE context to add to.
- * @param rid The recipient ID.
+ * @param rcp_conf The recipient configuration information (deleted on return
+ *                 of function).
  * @param break_key @c 1 if testing for broken keys, else @c 0.
  *
  * @return NULL if failure or recipient context linked onto @p ctx chain.
  */
 oscore_recipient_ctx_t *oscore_add_recipient(oscore_ctx_t *ctx,
-                                             coap_bin_const_t *rid,
+                                             coap_oscore_rcp_conf_t *rcp_conf,
                                              uint32_t break_key);
 
 int oscore_delete_recipient(oscore_ctx_t *osc_ctx, coap_bin_const_t *rid);
+
+void oscore_free_sender(oscore_sender_ctx_t *snd_ctx);
+
+void oscore_enter_context(coap_context_t *c_context, oscore_ctx_t *osc_ctx);
 
 uint8_t oscore_bytes_equal(uint8_t *a_ptr,
                            uint8_t a_len,
@@ -273,6 +299,14 @@ int oscore_derive_keystream(oscore_ctx_t *osc_ctx,
                             size_t cs_size,
                             uint8_t *keystream,
                             size_t keystream_size);
+
+coap_bin_const_t *oscore_build_key(oscore_ctx_t *osc_ctx,
+                                   coap_bin_const_t *salt,
+                                   coap_bin_const_t *ikm,
+                                   cose_alg_t alg_aead,
+                                   coap_bin_const_t *id,
+                                   coap_str_const_t *type,
+                                   size_t out_len);
 
 /** @} */
 

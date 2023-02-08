@@ -59,10 +59,10 @@
 
 typedef enum {
   COSE_CURVE_P_256 = 1,     /* NIST P-256 known as secp256r1 */
-  COSE_CURVE_X25519 = 4,    /* used with ECDH only      */
-  COSE_CURVE_X448 = 5,      /* used with ECDH only      */
-  COSE_CURVE_ED25519 = 6,   /* used with EdDSA only     */
-  COSE_CURVE_ED448 = 7,     /* used with EdDSA only     */
+  COSE_CURVE_X25519 = 4,    /* used with ECDH only */
+  COSE_CURVE_X448 = 5,      /* used with ECDH only */
+  COSE_CURVE_ED25519 = 6,   /* used with EdDSA only */
+  COSE_CURVE_ED448 = 7,     /* used with EdDSA only */
   COSE_CURVE_SECP256K1 = 8, /* SECG secp256k1 curve */
 } cose_curve_t;
 
@@ -169,6 +169,8 @@ typedef enum {
 
 const char *cose_get_curve_name(cose_curve_t id, char *buffer, size_t buflen);
 cose_curve_t cose_get_curve_id(const char *name);
+cose_key_type_t cose_get_curve_key_type(cose_curve_t curve);
+coap_bin_const_t *cose_get_curve_bin_oid(cose_curve_t curve);
 
 const char *cose_get_alg_name(cose_alg_t id, char *buffer, size_t buflen);
 cose_alg_t cose_get_alg_id(const char *name);
@@ -178,7 +180,6 @@ const char *cose_get_hkdf_alg_name(cose_hkdf_alg_t id, char *buffer,
 
 int cose_get_hmac_alg_for_hkdf(cose_hkdf_alg_t hkdf_alg,
                                cose_hmac_alg_t *hmac_alg);
-
 /* parameter value functions */
 
 /* return tag length belonging to cose algorithm */
@@ -208,7 +209,30 @@ typedef struct cose_encrypt0_t {
   coap_bin_const_t aad;
   coap_bin_const_t plaintext;
   coap_bin_const_t ciphertext;
+#if COAP_OSCORE_GROUP_SUPPORT
+  int group_flag;
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
 } cose_encrypt0_t;
+
+#if COAP_OSCORE_GROUP_SUPPORT
+/* COSE Sign1 Struct */
+typedef struct cose_sign1_t {
+
+  cose_alg_t alg;
+  cose_curve_t alg_param;
+  int alg_kty;
+
+  coap_crypto_pri_key_t *private_key;
+
+  coap_crypto_pub_key_t *public_key;
+
+  coap_bin_const_t ciphertext;
+
+  coap_bin_const_t sigstructure;
+
+  coap_binary_t signature;
+} cose_sign1_t;
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
 
 /* Return length */
 size_t cose_encrypt0_encode(cose_encrypt0_t *ptr, uint8_t *buffer, size_t size);
@@ -264,6 +288,33 @@ int cose_encrypt0_encrypt(cose_encrypt0_t *ptr,
 int cose_encrypt0_decrypt(cose_encrypt0_t *ptr,
                           uint8_t *plaintext_buffer,
                           size_t plaintext_len);
+
+#if COAP_OSCORE_GROUP_SUPPORT
+/* Curve signature functions    */
+
+void cose_sign1_init(cose_sign1_t *ptr);
+
+void cose_sign1_set_alg(cose_sign1_t *ptr, int alg, int alg_param, int alg_kty);
+
+void cose_sign1_set_ciphertext(cose_sign1_t *ptr, uint8_t *buffer, size_t size);
+
+void cose_sign1_set_public_key(cose_sign1_t *ptr,
+                               coap_crypto_pub_key_t *buffer);
+
+void cose_sign1_set_private_key(cose_sign1_t *ptr,
+                                coap_crypto_pri_key_t *buffer);
+
+/* Return length */
+int cose_sign1_get_signature(cose_sign1_t *ptr, const uint8_t **buffer);
+
+void cose_sign1_set_signature(cose_sign1_t *ptr, uint8_t *buffer, size_t size);
+
+int cose_sign1_sign(cose_sign1_t *ptr);
+
+void cose_sign1_set_sigstructure(cose_sign1_t *ptr, uint8_t *buffer, size_t size);
+
+int cose_sign1_verify(cose_sign1_t *ptr);
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
 
 /** @} */
 

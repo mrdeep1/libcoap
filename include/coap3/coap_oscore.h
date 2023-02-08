@@ -36,6 +36,20 @@
 int coap_oscore_is_supported(void);
 
 /**
+ * Check whether OSCORE Group support is available.
+ *
+ * @return @c 1 if support for OSCORE Group is enabled, or @c 0 otherwise.
+ */
+int coap_oscore_group_is_supported(void);
+
+/**
+ * Check whether OSCORE Pairwise support is available.
+ *
+ * @return @c 1 if support for OSCORE Pairwise is enabled, or @c 0 otherwise.
+ */
+int coap_oscore_pairwise_is_supported(void);
+
+/**
  * Creates a new client session to the designated server, protecting the data
  * using OSCORE.
  *
@@ -165,6 +179,28 @@ coap_oscore_conf_t *coap_new_oscore_conf(coap_str_const_t conf_mem,
  * @return @c 1 Successfully removed, else @c 0 not found.
  */
 int coap_delete_oscore_conf(coap_oscore_conf_t *oscore_conf);
+
+/**
+ * Release all the information associated with the OSCORE Group Sender
+ * configuration.
+ *
+ * @param oscore_snd_conf The OSCORE Group Sender configuration structure
+ *                        to release.
+ *
+ * @return @c 1 Successfully removed, else @c 0 not found.
+ */
+int coap_delete_oscore_snd_conf(coap_oscore_snd_conf_t *oscore_snd_conf);
+
+/**
+ * Release all the information associated with the OSCORE Group Recipient
+ * configuration.
+ *
+ * @param oscore_rcp_conf The OSCORE Group Recipient configuration structure
+ *                        to release.
+ *
+ * @return @c 1 Successfully removed, else @c 0 not found.
+ */
+int coap_delete_oscore_rcp_conf(coap_oscore_rcp_conf_t *oscore_rcp_conf);
 
 /**
  * Add in the specific Recipient ID into the OSCORE context (server only).

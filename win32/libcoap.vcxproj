@@ -104,9 +104,9 @@
     <ClInclude Include="..\$(LibCoAPIncludeDir)\coap_net.h" />
     <ClInclude Include="..\$(LibCoAPIncludeDir)\coap_netif_internal.h" />
     <ClInclude Include="..\$(LibCoAPIncludeDir)\coap_option.h" />
-    <ClInclude Include="..\$(LibCoAPIncludeDir)\coap_pdu.h" />
     <ClInclude Include="..\$(LibCoAPIncludeDir)\coap_oscore.h" />
     <ClInclude Include="..\$(LibCoAPIncludeDir)\coap_oscore_internal.h" />
+    <ClInclude Include="..\$(LibCoAPIncludeDir)\coap_pdu.h" />
     <ClInclude Include="..\$(LibCoAPIncludeDir)\coap_prng.h" />
     <ClInclude Include="..\$(LibCoAPIncludeDir)\coap_resource.h" />
     <ClInclude Include="..\$(LibCoAPIncludeDir)\coap_resource_internal.h" />

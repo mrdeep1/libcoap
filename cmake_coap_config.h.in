@@ -35,6 +35,9 @@
 /* Define to 1 if the library has OSCORE support. */
 #cmakedefine COAP_OSCORE_SUPPORT @COAP_OSCORE_SUPPORT@
 
+/* Define to 1 if the library has OSCORE Group support. */
+#cmakedefine COAP_OSCORE_GROUP_SUPPORT @COAP_OSCORE_GROUP_SUPPORT@
+
 /* Define to 1 if the library has WebSockets support. */
 #cmakedefine COAP_WS_SUPPORT @COAP_WS_SUPPORT@
 

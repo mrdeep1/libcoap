@@ -31,16 +31,50 @@
  */
 
 /**
+ * The structure used to hold the OSCORE Sender configuration information
+ */
+struct coap_oscore_snd_conf_t {
+  coap_bin_const_t *sender_id;     /**< Sender ID (i.e. local our id) */
+#if COAP_OSCORE_GROUP_SUPPORT
+  cose_curve_t sign_curve; /**< Set to one of COSE_curve_* */
+  /* Group */
+  int group_mode;          /**< 1 if group mode supported else 0 */
+  /* Pair Wise */
+  int pairwise_mode;       /**< 1 if pairwise mode supported else 0 */
+  coap_crypto_pub_key_t *gs_public_key;  /**< Sender Public Key (i.e.
+                                              local our Key) */
+  coap_crypto_pri_key_t *gs_private_key; /**< Private Key for
+                                              gs_public_key */
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
+};
+
+/**
+ * The structure used to hold the OSCORE Recipient configuration
+ */
+struct coap_oscore_rcp_conf_t {
+  struct coap_oscore_rcp_conf_t *next_recipient; /**< Used to maintain
+                                                      the chain */
+  coap_bin_const_t *recipient_id;  /**< Recipient ID (i.e. local our id) */
+#if COAP_OSCORE_GROUP_SUPPORT
+  coap_crypto_pub_key_t *gr_public_key; /**< Recipient Public Key
+                                             (i.e. remote peer Key) */
+  cose_curve_t sign_curve; /**< Set to one of COSE_curve_* */
+  /* Group */
+  int group_mode;          /**< 1 if group mode supported else 0 */
+  /* Pair Wise */
+  int pairwise_mode;       /**< 1 if pairwise mode supported else 0 */
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
+};
+
+/**
  * The structure used to hold the OSCORE configuration information
  */
 struct coap_oscore_conf_t {
   coap_bin_const_t *master_secret; /**< Common Master Secret */
   coap_bin_const_t *master_salt;   /**< Common Master Salt */
-  coap_bin_const_t *sender_id;     /**< Sender ID (i.e. local our id) */
   coap_bin_const_t *id_context;    /**< Common ID context */
-  coap_bin_const_t **recipient_id; /**< Recipient ID (i.e. remote peer id)
-                                        Array of recipient_id */
-  uint32_t recipient_id_count;     /**< Number of recipient_id entries */
+  coap_oscore_snd_conf_t *sender;  /**< The sender - i.e. us */
+  coap_oscore_rcp_conf_t *recipient_chain; /**< The recipients  as a chain */
   uint32_t replay_window;          /**< Replay window size
                                         Use COAP_OSCORE_DEFAULT_REPLAY_WINDOW */
   uint32_t ssn_freq;               /**< Sender Seq Num update frequency */
@@ -48,6 +82,19 @@ struct coap_oscore_conf_t {
   cose_hkdf_alg_t hkdf_alg;        /**< Set to one of COSE_HKDF_ALG_* */
   uint32_t rfc8613_b_1_2;          /**< 1 if rfc8613 B.1.2 enabled else 0 */
   uint32_t rfc8613_b_2;            /**< 1 if rfc8613 B.2 protocol else 0 */
+
+#if COAP_OSCORE_GROUP_SUPPORT
+  coap_bin_const_t *group_name;    /**< The name of the OSCORE group */
+  coap_crypto_pub_key_t *gm_public_key; /**< Group Manager Public Key */
+  coap_bin_const_t *sign_params; /**< binary CBOR array */
+  cose_curve_t ecdh_alg;   /**< Set to one of COSE_curve_* */
+  int cred_fmt;            /**< Credentials type format */
+  cose_alg_t group_enc_alg; /**< Group Encryption Algorithm */
+  cose_alg_t sign_alg;      /**< Signature Algorithm */
+  cose_curve_t sign_curve; /**< Set to one of COSE_curve_* */
+  coap_bin_const_t *sign_enc_key; /**< Signature Encryption Key */
+  cose_curve_t pw_key_agree_alg; /**< Pairwise Agreement Algorithm */
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
 
   /* General Testing */
   uint32_t break_sender_key;     /**< 1 if sender key to be broken, else 0 */

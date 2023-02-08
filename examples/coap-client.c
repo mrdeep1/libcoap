@@ -316,6 +316,7 @@ event_handler(coap_session_t *session COAP_UNUSED,
   case COAP_EVENT_OSCORE_NO_SECURITY:
   case COAP_EVENT_OSCORE_INTERNAL_ERROR:
   case COAP_EVENT_OSCORE_DECODE_ERROR:
+  case COAP_EVENT_OSCORE_SIGNATURE_FAILURE:
   case COAP_EVENT_WS_PACKET_SIZE:
   case COAP_EVENT_WS_CLOSED:
   case COAP_EVENT_BAD_PACKET:
@@ -486,7 +487,7 @@ message_handler(coap_session_t *session COAP_UNUSED,
 static void
 usage(const char *program, const char *version) {
   const char *p;
-  char buffer[120];
+  char buffer[150];
   const char *lib_build = coap_package_build();
 
   p = strrchr(program, '/');

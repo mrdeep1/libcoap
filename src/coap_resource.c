@@ -656,8 +656,13 @@ coap_print_link(const coap_resource_t *resource,
 
 #if COAP_OSCORE_SUPPORT
   /* If oscore is enabled */
-  if (resource->flags & COAP_RESOURCE_FLAGS_OSCORE_ONLY)
+  if (resource->flags & COAP_RESOURCE_FLAGS_OSCORE_ONLY) {
+#if COAP_OSCORE_GROUP_SUPPORT
+    COPY_COND_WITH_OFFSET(p, bufend, *offset, ";gosc;osc", 8, *len);
+#else /* ! COAP_OSCORE_GROUP_SUPPORT */
     COPY_COND_WITH_OFFSET(p, bufend, *offset, ";osc", 4, *len);
+#endif /* ! COAP_OSCORE_GROUP_SUPPORT */
+  }
 #endif /* COAP_OSCORE_SUPPORT */
 
   output_length = (coap_print_status_t)(p - buf);

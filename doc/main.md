@@ -48,6 +48,12 @@ The following RFCs are supported
 
 * [RFC9177: Constrained Application Protocol (CoAP) Block-Wise Transfer Options Supporting Robust Transmission](https://rfc-editor.org/rfc/rfc9177)
 
+The following Internet Drafts are supported
+
+* [I-D Group Communication for the Constrained Application Protocol (CoAP)](https://datatracker.ietf.org/doc/html/draft-ietf-core-groupcomm-bis-09)
+
+* [I-D Group OSCORE - Secure Group Communication for CoAP](https://datatracker.ietf.org/doc/html/draft-ietf-core-oscore-groupcomm-19)
+
 There is (D)TLS support for the following libraries
 
 * [OpenSSL](https://www.openssl.org) (Minimum version 1.1.0) [PKI, PSK and PKCS11]

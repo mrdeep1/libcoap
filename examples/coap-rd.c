@@ -551,7 +551,7 @@ init_resources(coap_context_t *ctx) {
 static void
 usage(const char *program, const char *version) {
   const char *p;
-  char buffer[120];
+  char buffer[150];
   const char *lib_build = coap_package_build();
 
   p = strrchr(program, '/');

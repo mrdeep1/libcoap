@@ -70,7 +70,9 @@ coap_delete_cache_entry
 coap_delete_cache_key
 coap_delete_optlist
 coap_delete_oscore_conf
+coap_delete_oscore_rcp_conf
 coap_delete_oscore_recipient
+coap_delete_oscore_snd_conf
 coap_delete_pdu
 coap_delete_resource
 coap_delete_str_const
@@ -164,7 +166,9 @@ coap_option_filter_set
 coap_option_filter_unset
 coap_option_iterator_init
 coap_option_next
+coap_oscore_group_is_supported
 coap_oscore_is_supported
+coap_oscore_pairwise_is_supported
 coap_package_build
 coap_package_name
 coap_package_version

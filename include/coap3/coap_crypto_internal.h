@@ -65,6 +65,34 @@ typedef struct coap_crypto_param_t {
 } coap_crypto_param_t;
 
 /**
+ * Holds private key definitions
+ */
+struct coap_crypto_pri_key_t {
+  void *key_tls;               /**< Private Key in the used TLS format */
+  coap_bin_const_t *pri_der;   /**< DER Value of the private key abstracted
+                                    from key_tls */
+  coap_bin_const_t *pri_raw;   /**< Raw Value of the private key abstracted
+                                    from key_tls */
+  size_t wire_sign_size;       /**< Size of signature on wire */
+};                             /* typedef in coap_forward_decls.h */
+
+/**
+ * Holds public key definitions
+ */
+struct coap_crypto_pub_key_t {
+  void *key_tls;               /**< Public Key in the used TLS format */
+  coap_bin_const_t *pub_der;   /**< DER Value of the public key abstracted
+                                    from key_tls */
+  coap_bin_const_t *pub_raw;   /**< Raw Value of the public key abstracted
+                                    from key_tls */
+  coap_bin_const_t *cert_der;  /**< DER Value of the certificate used for
+                                    key_tls */
+  size_t wire_sign_size;       /**< Size of signature on wire */
+  cose_alg_t sign_hash;        /**< Sign Hash Algorithm */
+  cose_curve_t sign_curve;     /**< Sign Curve */
+};                             /* typedef in coap_forward_decls.h */
+
+/**
  * Check whether the defined cipher algorithm is supported by the underlying
  * crypto library.
  *
@@ -151,6 +179,196 @@ int coap_crypto_hmac(cose_hmac_alg_t hmac_alg,
 int coap_crypto_hash(cose_alg_t alg,
                      const coap_bin_const_t *data,
                      coap_bin_const_t **hash);
+
+#if COAP_OSCORE_GROUP_SUPPORT
+
+/**
+ * Check whether the defined curve algorithm is supported by the underlying
+ * crypto library.
+ *
+ * @param alg The COSE curve to check.
+ *
+ * @return @c 1 if there is support, else @c 0.
+ */
+int coap_crypto_check_curve_alg(cose_curve_t alg);
+
+/**
+ * Check whether the defined hash algorithm is supported by the underlying
+ * crypto library.
+ *
+ * @param alg The COSE hash to check.
+ *
+ * @return @c 1 if there is support, else @c 0.
+ */
+int coap_crypto_check_hash_alg(cose_alg_t alg);
+
+/**
+ * Load in the private key from the specific PEM file
+ *
+ * @param filename The file containing the private key in PEM.
+ * @param private Where to hold the private information.
+ *
+ * @return @c 1 if the private key was successfully imported, else @c 0.
+ */
+int coap_crypto_read_pem_private_key(const char *filename,
+                                     coap_crypto_pri_key_t **private);
+
+/**
+ * Load in the private key from the ASN1 hex definition
+ *
+ * @param binary The binary equivalent of the hex definition.
+ * @param private Where to hold the private information.
+ *
+ * @return @c 1 if the private key was successfully imported, else @c 0.
+ */
+int coap_crypto_read_asn1_private_key(coap_bin_const_t *binary,
+                                      coap_crypto_pri_key_t **private);
+
+/**
+ * Load in the private key from the raw hex definition
+ *
+ * @param curve The elliptic curve to use for the key.
+ * @param binary The binary equivalent of the hex definition.
+ * @param private Where to hold the private information.
+ *
+ * @return @c 1 if the private key was successfully imported, else @c 0.
+ */
+int coap_crypto_read_raw_private_key(cose_curve_t curve,
+                                     coap_bin_const_t *binary,
+                                     coap_crypto_pri_key_t **private);
+
+/**
+ * Duplicate the private key
+ *
+ * @param key The location of the public key.
+ *
+ * @return Duplicated private key or @c NULL if error.
+ */
+coap_crypto_pri_key_t *coap_crypto_duplicate_private_key(coap_crypto_pri_key_t *key);
+
+/**
+ * Delete the private key previously generated
+ *
+ * @param key The location of the held private key.
+ */
+void coap_crypto_delete_private_key(coap_crypto_pri_key_t *key);
+
+/**
+ * Load in the public key from the specific PEM file
+ *
+ * @param filename The file containing the public key in PEM.
+ * @param pubic Where to hold the public information.
+ *
+ * @return @c 1 if the public key was successfully imported, else @c 0.
+ */
+int coap_crypto_read_pem_public_key(const char *filename,
+                                    coap_crypto_pub_key_t **public);
+
+/**
+ * Load in the public key from the ASN1 hex definition
+ *
+ * @param binary The binary equivalent of the hex definition.
+ * @param pubic Where to hold the public information.
+ *
+ * @return @c 1 if the public key was successfully imported, else @c 0.
+ */
+int coap_crypto_read_asn1_public_key(coap_bin_const_t *binary,
+                                     coap_crypto_pub_key_t **public);
+
+/**
+ * Load in the public key from the raw hex definition
+ *
+ * @param curve The elliptic curve to use for the key.
+ * @param binary The binary equivalent of the hex definition.
+ * @param pubic Where to hold the public information.
+ *
+ * @return @c 1 if the public key was successfully imported, else @c 0.
+ */
+int coap_crypto_read_raw_public_key(cose_curve_t curve,
+                                    coap_bin_const_t *binary,
+                                    coap_crypto_pub_key_t **public);
+
+/**
+ * Duplicate the public key
+ *
+ * @param key The location of the public key.
+ *
+ * @return Duplicated public key or @c NULL if error.
+ */
+coap_crypto_pub_key_t *coap_crypto_duplicate_public_key(coap_crypto_pub_key_t *key);
+
+/**
+ * Delete the public key previously generated
+ *
+ * @param key The location of the held public key.
+ */
+void coap_crypto_delete_public_key(coap_crypto_pub_key_t *key);
+
+/**
+ * Create the signature for the specified text
+ *
+ * @param hash The hash to use.
+ * @param signature The signature to fill in
+ * @param text The text to sign
+ * @param private_key The private key to use for the signature
+ *
+ * @return @c 1 if the data was successfully signed, else @c 0.
+ */
+int coap_crypto_hash_sign(cose_alg_t hash,
+                          coap_binary_t *signature,
+                          coap_bin_const_t *text,
+                          coap_crypto_pri_key_t *private_key);
+
+/**
+ * Verify the signature for the specified text
+ *
+ * @param hash The hash to use.
+ * @param signature The signature to verify
+ * @param text The text to verify
+ * @param public_key The public key to use for the signature
+ *
+ * @return @c 1 if the data was successfully verified, else @c 0.
+ */
+int coap_crypto_hash_verify(cose_alg_t hash,
+                            coap_binary_t *signature,
+                            coap_bin_const_t *text,
+                            coap_crypto_pub_key_t *public_key);
+
+/**
+ * Generate a private and/or public key based on @p curve.
+ *
+ * @param curve The elliptic curve to use.
+ * @param private  Where to put the created private key
+ *                 (or NULL if not required).
+ * @param public  Where to put the created public key
+ *                (or NULL if not required).
+ *
+ * @return @c 1 if the key(s) were successfully generated, else @c 0.
+ *         It is the responsibility of the caller to release any
+ *         created keys.
+ */
+int coap_crypto_gen_pkey(cose_curve_t curve,
+                         coap_bin_const_t **private,
+                         coap_bin_const_t **public);
+
+/**
+ * Derive a shared secret from local private key and peer public key.
+ *
+ * @param curve The elliptic curve to use.
+ * @param private The local raw private key.
+ * @param peer_public The peer raw public key.
+ * @param shared_secret Where to put the created shared secret.
+ *
+ * @return @c 1 if the shared secret was successfully generated, else @c 0.
+ *         It is the responsibility of the caller to release the
+ *         created shared_secret.
+ */
+int coap_crypto_derive_shared_secret(cose_curve_t curve,
+                                     coap_bin_const_t *raw_local_private,
+                                     coap_bin_const_t *raw_peer_public,
+                                     coap_bin_const_t **shared_secret);
+
+#endif /* COAP_OSCORE_GROUP_SUPPORT */
 
 /** @} */
 
