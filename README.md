@@ -64,9 +64,13 @@ The following RFCs are supported
 
 * [RFC9177: Constrained Application Protocol (CoAP) Block-Wise Transfer Options Supporting Robust Transmission](https://rfc-editor.org/rfc/rfc9177)
 
-The following Internet Draft is supported
+The following Internet Drafts are supported
 
 * [I-D URI-Path abbreviation in CoAP](https://datatracker.ietf.org/doc/html/draft-ietf-core-uri-path-abbrev-05)
+
+* [I-D Group Communication for the Constrained Application Protocol (CoAP)](https://datatracker.ietf.org/doc/html/draft-ietf-core-groupcomm-bis-15)
+
+* [I-D Group OSCORE - Secure Group Communication for CoAP](https://datatracker.ietf.org/doc/html/draft-ietf-core-oscore-groupcomm-28)
 
 There is (D)TLS support for the following libraries
 
