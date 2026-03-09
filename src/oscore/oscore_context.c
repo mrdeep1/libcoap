@@ -511,8 +511,7 @@ error:
   return NULL;
 }
 
-oscore_ctx_t *
-oscore_derive_ctx(coap_context_t *c_context, coap_oscore_conf_t *oscore_conf) {
+oscore_ctx_t *oscore_derivc_ctx_from_conf(coap_oscore_conf_t *oscore_conf) {
   oscore_ctx_t *osc_ctx = NULL;
   oscore_sender_ctx_t *sender_ctx = NULL;
   size_t i;
@@ -586,16 +585,21 @@ oscore_derive_ctx(coap_context_t *c_context, coap_oscore_conf_t *oscore_conf) {
       goto error;
     }
   }
+
   oscore_log_context(osc_ctx, "Common context");
-
-  oscore_enter_context(c_context, osc_ctx);
-
   return osc_ctx;
 
 error:
   coap_free_type(COAP_OSCORE_COM, osc_ctx);
   coap_free_type(COAP_OSCORE_SEN, sender_ctx);
   return NULL;
+}
+
+oscore_ctx_t *
+oscore_derive_ctx(coap_context_t *c_context, coap_oscore_conf_t *oscore_conf) {
+  oscore_ctx_t *osc_ctx = oscore_derivc_ctx_from_conf(oscore_conf);
+  oscore_enter_context(c_context, osc_ctx);
+  return osc_ctx;
 }
 
 oscore_recipient_ctx_t *

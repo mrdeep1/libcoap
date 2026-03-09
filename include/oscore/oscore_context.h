@@ -168,6 +168,15 @@ oscore_ctx_t *oscore_derive_ctx(coap_context_t *c_context,
                                 coap_oscore_conf_t *oscore_conf);
 
 /**
+ * oscore_derivc_ctx_from_conf - derive a osc_ctx from oscore_conf information
+ *
+ * @param oscore_conf The OSCORE configuration to use.
+ *
+ * @return NULL if failure or derived OSCORE context.
+ */
+oscore_ctx_t *oscore_derivc_ctx_from_conf(coap_oscore_conf_t *oscore_conf);
+
+/**
  * oscore_duplicate_ctx - duplicate a osc_ctx
  *
  * @param c_context The CoAP context to associate OSCORE context with.
