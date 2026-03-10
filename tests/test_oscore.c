@@ -985,7 +985,7 @@ t_oscore_c_8_2(void) {
   session->context = ctx;
   session->proto = COAP_PROTO_UDP;
   session->type = COAP_SESSION_TYPE_CLIENT;
-  session->recipient_ctx = ctx->p_osc_ctx->recipient_chain;
+  coap_oscore_session_set_recipient(session, ctx->p_osc_ctx->recipient_chain);
   session->context = ctx;
 
   /* Send request, so that all associations etc. are correctly set up */
@@ -1027,6 +1027,76 @@ fail:
   coap_delete_pdu(osc_pdu);
   coap_free(session);
 }
+
+/************************************************************************
+ ** OSCORE credential storage tests
+ ************************************************************************/
+
+static coap_oscore_conf_t * new_test_config(void) {
+  static const char conf_data[] =
+      "master_secret,hex,\"0102030405060708090a0b0c0d0e0f10\"\n"
+      "master_salt,hex,\"9e7ca92223786340\"\n"
+      "sender_id,hex,\"\"\n"
+      "recipient_id,hex,\"01\"\n";
+  const coap_str_const_t conf = { sizeof(conf_data)-1,
+                                  (const uint8_t *)conf_data
+                                };
+  return coap_new_oscore_conf(conf, NULL, NULL, 0);
+}
+
+static coap_oscore_conf_t * new_test_config_2(void) {
+  static const char conf_data[] =
+      "master_secret,hex,\"0102030405060708090a0b0c0d0e0f12\"\n"
+      "master_salt,hex,\"9e7ca92223786340\"\n"
+      "sender_id,hex,\"\"\n"
+      "recipient_id,hex,\"02\"\n";
+  const coap_str_const_t conf = { sizeof(conf_data)-1,
+                                  (const uint8_t *)conf_data
+                                };
+  return coap_new_oscore_conf(conf, NULL, NULL, 0);
+}
+
+static void t_oscore_context_find(void) {
+  coap_oscore_conf_t *conf = new_test_config();
+
+  // create a test
+  coap_context_t* coap_ctx = coap_new_context(NULL);
+  FailIf_CU_ASSERT_PTR_NOT_NULL(coap_ctx);
+  
+  CU_ASSERT(coap_oscore_get_first(coap_ctx) == NULL);
+
+  // attach to context via the old API
+  CU_ASSERT(coap_context_oscore_server(coap_ctx, conf) == 1);
+
+  // find the first oscore context
+  CU_ASSERT(coap_oscore_get_first(coap_ctx) != NULL);
+
+  coap_oscore_ctx_t *oscore_ctx = coap_init_oscore_context_from_conf(new_test_config_2());
+  FailIf_CU_ASSERT_PTR_NOT_NULL(oscore_ctx);
+
+  CU_ASSERT(coap_add_oscore_context(coap_ctx, oscore_ctx) == 1);
+
+fail:
+  coap_free_context(coap_ctx);
+}
+
+/**
+static void t_oscore_context_add_and_remove(void) {
+  static const char conf_data[] =
+      "master_secret,hex,\"0102030405060708090a0b0c0d0e0f10\"\n"
+      "master_salt,hex,\"9e7ca92223786340\"\n"
+      "sender_id,hex,\"\"\n"
+      "recipient_id,hex,\"01\"\n";
+  const coap_str_const_t conf = { sizeof(conf_data)-1,
+                                  (const uint8_t *)conf_data
+                                };
+  coap_oscore_conf_t *oscore_conf;
+
+
+
+  CU_ASSERT(1 == 1);
+}
+*/
 
 /************************************************************************
  ** initialization
@@ -1078,6 +1148,9 @@ t_init_oscore_tests(void) {
     OSCORE_TEST(t_oscore_c_7_2);
     OSCORE_TEST(t_oscore_c_8);
     OSCORE_TEST(t_oscore_c_8_2);
+
+    OSCORE_TEST(t_oscore_context_find);
+    // OSCORE_TEST(t_oscore_context_add_and_remove);
   }
 
   return suite[0];

@@ -33,6 +33,93 @@ extern "C" {
  */
 
 /**
+ * Callback function type for overriding oscore_find_context().
+ *
+ * If set via coap_oscore_set_find_func(), this function is
+ * called instead of the built-in oscore_find_context() to locate the OSCORE
+ * recipient and security context for an incoming request.
+ *
+ * @param c_context  The CoAP context to search.
+ * @param rcpkey_id  The Recipient kid.
+ * @param ctxkey_id  The ID Context to match (or NULL if no check).
+ * @param oscore_r2  Partial id_context to match against, or NULL.
+ * @param recipient_ctx Updated to the matched recipient context on success.
+ * @param app_data   The application-specific pointer set alongside the callback.
+ *
+ * @return The OSCORE context with @p recipient_ctx updated, or NULL if not found.
+ */
+typedef coap_oscore_recipient_ctx_t *(*coap_oscore_find_func_t)(
+    const coap_context_t *c_context,
+    const coap_bin_const_t rcpkey_id,
+    const coap_bin_const_t ctxkey_id,
+    void *app_data);
+
+/**
+ * Retrieve the first stored oscore context.
+ *
+ * @param c_context The CoAP contetx to retreive the first context.
+ * @return coap_oscore_ctx_t * retrieve reference to the first oscore context.
+ */
+COAP_API coap_oscore_ctx_t * coap_oscore_get_first(
+    const coap_context_t *c_context
+);
+
+/**
+ * Retrieve the oscore recipient by key id and context id.
+ *
+ * @param current_ctx Current oscore context to find next match.
+ * @param rcpkey_id The Recipient kid.
+ * @param ctxkey_id The ID Context to match.
+ */
+COAP_API coap_oscore_ctx_t * coap_oscore_get_next(
+    coap_oscore_ctx_t * current_ctx,
+    const coap_bin_const_t ctxkey_id
+);
+
+/**
+ * Create the oscore context from the oscore configuration.
+ *
+ * @param oscore_conf The oscore configuration to create the context from. Ownership of this structure is 
+ *                    transferred to this function and will be freed by it.
+ * @return coap_oscore_ctx_t * the created oscore context or NULL if failed.
+ */
+COAP_API coap_oscore_ctx_t * coap_init_oscore_context_from_conf(
+    coap_oscore_conf_t *oscore_conf
+);
+
+/**
+ * Add an OSCORE context to the CoAP context.
+ * 
+ * @param context The CoAP context to add the OSCORE context to.
+ * @param osc_ctx The OSCORE context to add. Ownership of this structure is transferred to
+ *                the coap context. On failure, the context is freed.
+ * @return int @c 1 if the context was added successfully,
+ *             @c 0 otherwise if the provided @p osc_ctx was NULL.
+ * 
+ * @warning The OSCORE context memory ownership is transfered to libcoap and should not
+ *          be released outside.
+ */
+COAP_API int coap_add_oscore_context(
+    coap_context_t *context,
+    coap_oscore_ctx_t *osc_ctx
+);
+
+/**
+ * Remove an OSCORE context from the CoAP context.
+ * 
+ * @param context The CoAP context to remove the OSCORE context from.
+ * @param osc_ctx The OSCORE context to remove. Ownership of this structure is transferred back to
+ *                the caller. On failure, the context is not removed.
+ * @return int @c 1 if the context was removed successfully, @c 0 otherwise if the context was not attached.
+ *             @c 2 if the context is currently used by one or more coap session and will be removed when the 
+ *             session(s) are released.
+ */
+COAP_API int coap_delete_oscore_context(
+    coap_context_t *context,
+    coap_oscore_ctx_t *osc_ctx
+);
+
+/**
  * Creates a new client session to the designated server, protecting the data
  * using OSCORE.
  *
@@ -291,6 +378,22 @@ coap_oscore_conf_t *coap_new_oscore_conf(coap_str_const_t conf_mem,
  * @return @c 1 Successfully removed, else @c 0 not found.
  */
 int coap_delete_oscore_conf(coap_oscore_conf_t *oscore_conf);
+
+/**
+ * Register a callback to override the built-in OSCORE context lookup.
+ *
+ * When @p func is non-NULL it is called instead of oscore_find_context() on
+ * every incoming protected request. Pass @p func as NULL to restore the
+ * default behaviour.
+ *
+ * @param context   The CoAP context to configure.
+ * @param func      Replacement lookup function, or NULL to reset.
+ * @param app_data  Application context forwarded as to @p func.
+ */
+COAP_API void coap_oscore_set_find_func(
+    coap_context_t *context,
+    coap_oscore_find_func_t func,
+    void *app_data);
 
 /**
  * Add in the specific Recipient ID into the OSCORE context (server only).

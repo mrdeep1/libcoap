@@ -83,8 +83,9 @@ typedef struct oscore_sender_ctx_t oscore_sender_ctx_t;
 typedef struct oscore_recipient_ctx_t oscore_recipient_ctx_t;
 typedef struct oscore_association_t oscore_association_t;
 
-struct oscore_ctx_t {
+struct  oscore_ctx_t {
   struct oscore_ctx_t *next;
+  // unsigned ref; /**< Reference counter for oscore context */
   coap_bin_const_t *master_secret;
   coap_bin_const_t *master_salt;
   coap_bin_const_t *common_iv;  /**< Derived from Master Secret,
@@ -112,6 +113,8 @@ struct oscore_sender_ctx_t {
 };
 
 struct oscore_recipient_ctx_t {
+  /** Reference counter to keep track of linked associations / active sessions */
+  unsigned ref;
   /* This field allows recipient chaining */
   oscore_recipient_ctx_t *next_recipient;
   oscore_ctx_t *osc_ctx;
@@ -207,6 +210,8 @@ void oscore_free_context(oscore_ctx_t *osc_ctx);
 void oscore_free_contexts(coap_context_t *c_context);
 
 int oscore_remove_context(coap_context_t *c_context, oscore_ctx_t *osc_ctx);
+
+int oscore_add_context(coap_context_t *c_context, oscore_ctx_t *osc_ctx);
 
 /**
  * oscore_add_recipient - add in recipient information

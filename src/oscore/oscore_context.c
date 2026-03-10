@@ -189,6 +189,17 @@ oscore_find_context(const coap_context_t *c_context,
                     const coap_bin_const_t *ctxkey_id,
                     uint8_t *oscore_r2,
                     oscore_recipient_ctx_t **recipient_ctx) {
+  if (c_context->oscore_find_func) {
+    // todo - integrate oscore_r2 here or earlier?
+    if (oscore_r2) {
+      return NULL;
+    }
+
+    *recipient_ctx = c_context->oscore_find_func(c_context, rcpkey_id, *ctxkey_id,
+                                                 c_context->oscore_find_app_data);
+    return NULL;
+  }
+
   oscore_ctx_t *pt = c_context->p_osc_ctx;
 
   *recipient_ctx = NULL;
@@ -588,11 +599,16 @@ oscore_ctx_t *oscore_derivc_ctx_from_conf(coap_oscore_conf_t *oscore_conf) {
 
   oscore_log_context(osc_ctx, "Common context");
   return osc_ctx;
-
 error:
   coap_free_type(COAP_OSCORE_COM, osc_ctx);
   coap_free_type(COAP_OSCORE_SEN, sender_ctx);
   return NULL;
+}
+
+int oscore_add_context(coap_context_t *c_context, oscore_ctx_t *osc_ctx) {
+  // TODO: check for duplicates?
+  oscore_enter_context(c_context, osc_ctx);
+  return 1;
 }
 
 oscore_ctx_t *
@@ -679,6 +695,7 @@ oscore_delete_recipient(oscore_ctx_t *osc_ctx, coap_bin_const_t *rid) {
 void
 oscore_free_association(oscore_association_t *association) {
   if (association) {
+    printf("[association] free %p\n", (void *)association);
     coap_delete_pdu_lkd(association->sent_pdu);
     coap_delete_bin_const(association->token);
     coap_delete_bin_const(association->aad);
@@ -704,8 +721,10 @@ oscore_new_association(coap_session_t *session,
   if (association == NULL)
     return 0;
 
+  printf("[association] create %p\n", (void *)association);
+
   memset(association, 0, sizeof(oscore_association_t));
-  association->recipient_ctx = recipient_ctx;
+  coap_oscore_association_set_recipient(association, recipient_ctx);
   association->is_observe = is_observe;
   association->just_set_up = 1;
 

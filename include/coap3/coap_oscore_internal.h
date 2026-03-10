@@ -130,6 +130,29 @@ struct coap_pdu_t *coap_oscore_decrypt_pdu(coap_session_t *session,
 void coap_delete_all_oscore(coap_context_t *context);
 
 /**
+ * Attach the OSCORE recipient information to the session.
+ *
+ * @param session The session to attach the recipient information to.
+ * @param recipient The recipient information to attach.
+ */
+void coap_oscore_session_set_recipient(coap_session_t *session, coap_oscore_recipient_ctx_t *recipient);
+
+/**
+ * Clear the OSCORE recipient information from the session.
+ *
+ * @param session The session to clear the recipient information from.
+ */
+void coap_oscore_session_clear_recipient(coap_session_t *session);
+
+/**
+ * Set the recipient of an association.
+ *
+ * @param association The association to set @param recipient for.
+ * @param recipient For which the reference counter will be increased.
+ */
+void coap_oscore_association_set_recipient(oscore_association_t *association, coap_oscore_recipient_ctx_t *recipient);
+
+/**
  * Cleanup all allocated OSCORE association information.
  *
  * @param session The session that the OSCORE associations are associated with.

@@ -56,7 +56,7 @@ coap_oscore_initiate(coap_session_t *session, coap_oscore_conf_t *oscore_conf) {
     if (osc_ctx == NULL) {
       return 0;
     }
-    session->recipient_ctx = osc_ctx->recipient_chain;
+    coap_oscore_session_set_recipient(session, osc_ctx->recipient_chain);
     session->oscore_encryption = 1;
   }
   return 1;
@@ -239,6 +239,36 @@ coap_new_client_session_oscore_pki3_lkd(coap_context_t *ctx,
   return session;
 }
 #endif /* COAP_CLIENT_SUPPORT */
+COAP_API void
+coap_oscore_set_find_func(coap_context_t *context,
+                                  coap_oscore_find_func_t func,
+                                  void *app_data) {
+  coap_lock_lock();
+  context->oscore_find_func = func;
+  context->oscore_find_app_data = app_data;
+  coap_lock_unlock();
+}
+
+COAP_API coap_oscore_ctx_t *
+coap_oscore_get_first(const coap_context_t *c_context) {
+  return c_context->p_osc_ctx;
+}
+
+COAP_API coap_oscore_ctx_t *
+coap_oscore_get_next(coap_oscore_ctx_t *current_ctx,
+                     const coap_bin_const_t ctxkey_id) {
+  oscore_ctx_t *pt = current_ctx ? current_ctx->next : NULL;
+
+  while (pt != NULL) {
+    if (pt->id_context != NULL &&
+        pt->id_context->length == ctxkey_id.length &&
+        memcmp(pt->id_context->s, ctxkey_id.s, ctxkey_id.length) == 0)
+      return pt;
+    pt = pt->next;
+  }
+  return NULL;
+}
+
 #if COAP_SERVER_SUPPORT
 
 COAP_API int
@@ -787,7 +817,7 @@ coap_oscore_new_pdu_encrypted_lkd(coap_session_t *session,
           coap_new_bin_const(cose->partial_iv.s, cose->partial_iv.length);
       if (association->partial_iv == NULL)
         goto error;
-      association->recipient_ctx = rcp_ctx;
+      coap_oscore_association_set_recipient(association, rcp_ctx);
       coap_delete_pdu_lkd(association->sent_pdu);
       if (session->b_2_step != COAP_OSCORE_B_2_NONE || association->just_set_up) {
         size_t size;
@@ -880,6 +910,78 @@ fail_resp:
   session->oscore_encryption = oscore_encryption;
   coap_delete_pdu_lkd(err_pdu);
   return;
+}
+
+coap_oscore_ctx_t * coap_init_oscore_context_from_conf(
+    coap_oscore_conf_t *oscore_conf
+) {
+  coap_oscore_ctx_t *oscore_ctx = oscore_derivc_ctx_from_conf(oscore_conf);
+
+  if(oscore_ctx == NULL) {
+    goto error;
+  }
+
+  /* Free off the recipient_id array */
+  coap_free_type(COAP_STRING, oscore_conf->recipient_id);
+  oscore_conf->recipient_id = NULL;
+
+  /* As all is stored in osc_ctx, oscore_conf is no longer needed */
+  coap_free_type(COAP_STRING, oscore_conf);
+
+  return oscore_ctx;
+error:
+  coap_delete_oscore_conf(oscore_conf);
+  return NULL;
+}
+
+int coap_delete_oscore_context(
+    coap_context_t *context,
+    coap_oscore_ctx_t *oscore_ctx
+) {
+  // check if recipient is internally referenced.
+  oscore_recipient_ctx_t* next = oscore_ctx->recipient_chain;
+  int ok = 1;
+  while(next != NULL) {
+    if(next->ref > 0) {
+      // decrease reference of recipient.
+      // for custom attached oscore contexts the
+      // ref counter is additionally increased to
+      // prevent the oscore context to be removed.
+      // TODO(mrdeep): alternative add a ref counter to oscore_ctx?
+      next->ref--;
+    }
+
+    // if reference is still above 0,
+    // seems internal oscore_associations_t
+    // or session is referencing it, we can not free it yet.
+    if(next->ref > 0) {
+      ok = 2;
+      goto error;
+    }
+
+    next = next->next_recipient;
+  }
+
+  // TODO(lzuercher): call oscore context cleanup function to free oscore contexts which
+  //                  wich should be freed instead of calling oscore_free_context directly.
+  oscore_free_context(oscore_ctx);
+error:
+  return ok;
+}
+
+int coap_add_oscore_context(
+    coap_context_t *context,
+    coap_oscore_ctx_t *osc_ctx
+) {
+  if(osc_ctx == NULL || context == NULL) {
+    return 0;
+  }
+
+  int ret;
+  coap_lock_lock(return 0);
+  ret = oscore_add_context(context, osc_ctx);
+  coap_lock_unlock();
+  return ret;
 }
 
 /* pdu contains incoming message with encrypted COSE ciphertext payload
@@ -1100,7 +1202,7 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
       goto error_no_ack;
     }
     /* to be used for encryption of returned response later */
-    session->recipient_ctx = rcp_ctx;
+    coap_oscore_session_set_recipient(session, rcp_ctx);
     snd_ctx = osc_ctx->sender_context;
 
     /*
@@ -1277,7 +1379,7 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
       association->aad = coap_new_bin_const(cose->aad.s, cose->aad.length);
       if (association->aad == NULL)
         goto error;
-      association->recipient_ctx = rcp_ctx;
+      coap_oscore_association_set_recipient(association, rcp_ctx);
     } else if (!oscore_new_association(session,
                                        NULL,
                                        &pdu_token,
@@ -2171,7 +2273,25 @@ coap_delete_all_oscore(coap_context_t *c_context) {
 
 void
 coap_delete_oscore_associations(coap_session_t *session) {
+  if(session->recipient_ctx) {
+    session->recipient_ctx->ref--;
+    session->recipient_ctx = NULL;
+  }
   oscore_delete_server_associations(session);
+}
+
+void coap_oscore_session_set_recipient(coap_session_t *session, coap_oscore_recipient_ctx_t *recipient) {
+  if (session) {
+    session->recipient_ctx = recipient;
+    session->recipient_ctx->ref++;
+  }
+}
+
+void coap_oscore_association_set_recipient(oscore_association_t *association, coap_oscore_recipient_ctx_t *recipient) {
+  if(association) {
+    association->recipient_ctx = recipient;
+    association->recipient_ctx->ref++;
+  }
 }
 
 coap_oscore_conf_t *

@@ -20,6 +20,7 @@
 
 #include "coap_subscribe.h"
 #include "coap_resource.h"
+#include "coap_oscore.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -102,6 +103,8 @@ struct coap_context_t {
 #endif /* RIOT_VERSION */
 #if COAP_OSCORE_SUPPORT
   struct oscore_ctx_t *p_osc_ctx; /**< primary oscore context  */
+  coap_oscore_find_func_t oscore_find_func; /**< Optional override for oscore_find_context() */
+  void *oscore_find_app_data; /**< Passed to oscore_find_func() */
 #endif /* COAP_OSCORE_SUPPORT */
 
 #if COAP_CLIENT_SUPPORT

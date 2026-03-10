@@ -298,6 +298,35 @@ hnd_get_index(coap_resource_t *resource,
                                (const uint8_t *)INDEX, NULL, NULL);
 }
 
+// TODO remove
+#define UNUSED(x) (void)(x)
+
+// TODO: update function, find x, return y
+coap_oscore_recipient_ctx_t *coap_oscore_ctx_find(
+    const coap_context_t * c_context,
+    const coap_bin_const_t rcpkey_id,
+    const coap_bin_const_t ctxkey_id,
+    void * app_data
+) {
+  coap_oscore_ctx_t* ctx = coap_oscore_get_first(c_context);
+  if(ctx == NULL) {
+    return NULL;
+  }
+
+  do {
+    
+    // FOUND .. yay
+    
+  } while((ctx = coap_oscore_get_next(ctx, ctxkey_id)) != NULL);
+
+  UNUSED(c_context);
+  UNUSED(rcpkey_id);
+  UNUSED(ctxkey_id);
+  UNUSED(app_data);
+  printf("TODO: finalize retrieve ...\n");
+  return NULL;
+}
+
 static void
 hnd_get_fetch_time(coap_resource_t *resource,
                    coap_session_t *session,
@@ -2877,6 +2906,10 @@ main(int argc, char **argv) {
     return -1;
 
   init_resources(ctx);
+
+  // define oscore context disable
+  // coap_oscore_set_find_func(ctx, coap_oscore_ctx_find, NULL);
+
   if (mcast_per_resource)
     coap_mcast_per_resource(ctx);
   if (shutdown_no_observe)
