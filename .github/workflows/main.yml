@@ -129,7 +129,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/build-dist/libcoap-*.tar.bz2
-          cache-${{ github.run_id }}-${{ github.run_attempt }}
+          key: cache-${{ github.run_id }}-${{ github.run_attempt }}
       - name: build distribution
         run: |
           cd build-dist
@@ -150,7 +150,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/build-dist/libcoap-*.tar.bz2
-          cache-${{ github.run_id }}-${{ github.run_attempt }}
+          key: cache-${{ github.run_id }}-${{ github.run_attempt }}
       - name: cache Contiki
         id: cache_contiki_ng
         uses: actions/cache@v6
