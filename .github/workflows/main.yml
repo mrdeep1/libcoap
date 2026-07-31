@@ -117,13 +117,13 @@ jobs:
           submodules: recursive
       - name: setup
         run: |
-          sudo apt-get update && sudo apt-get install -y libtool libtool-bin doxygen asciidoc
+          sudo apt-get update && sudo apt-get install -y exuberant-ctags
           ./autogen.sh
       - name: configure
         run: |
           mkdir build-dist
           cd build-dist
-          $GITHUB_WORKSPACE/configure --enable-silent-rules --enable-documentation --enable-examples --disable-dtls
+          $GITHUB_WORKSPACE/configure --enable-silent-rules --disable-documentation --enable-examples --disable-dtls
       - name: cache tarball
         id: cache_tarball
         uses: actions/cache@v6
