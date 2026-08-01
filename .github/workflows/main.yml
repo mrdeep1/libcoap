@@ -134,6 +134,8 @@ jobs:
         run: |
           cd build-dist
           make dist
+          ls
+          ls build-dist
   distribution-contiki-build:
     needs: distribution-tarball
     runs-on: ubuntu-latest
@@ -145,6 +147,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y libcunit1-dev libtool libtool-bin exuberant-ctags graphviz doxygen libxml2-utils xsltproc docbook-xml docbook-xsl asciidoc libc6-dev-i386
           ./autogen.sh
+          mkdir -p build-dist
       - name: restore tarball
         id: cache_tarball
         uses: actions/cache@v6
