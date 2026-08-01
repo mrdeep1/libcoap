@@ -82,7 +82,7 @@ if test $err = 0 -a "x$ARCHIVE" != "x"; then
         fi
         ;;
     *)
-        echo '$1' is unknown
+        echo "'$1' is unknown"
         exit 1
         ;;
     esac
