@@ -146,11 +146,11 @@ jobs:
           submodules: recursive
       - uses: actions/checkout@v6
       - name: setup other
-        if matrix.BUILD == 'contiki' or matrix.BUILD == 'lwip' or matrix.BUILD == 'riot' or matrix.BUILD == 'zephyr' or matrix.BUILD == 'cmake'
+        if: matrix.BUILD == 'contiki' or matrix.BUILD == 'lwip' or matrix.BUILD == 'riot' or matrix.BUILD == 'zephyr' or matrix.BUILD == 'cmake'
         run: |
           sudo apt-get install -y libc6-dev-i386 lib32stdc++-13-dev
       - name: setup autogen
-        if matrix.BUILD == 'autogen'
+        if: matrix.BUILD == 'autogen'
         run: |
           sudo apt-get install -y libcunit1-dev libtool libtool-bin exuberant-ctags graphviz doxygen libxml2-utils xsltproc docbook-xml docbook-xsl asciidoc libc6-dev-i386
       - name: restore tarball
@@ -160,21 +160,21 @@ jobs:
           path: ${{ runner.temp }}/libcoap-*.tar.bz2
           key: cache-${{ github.run_id }}-${{ github.run_attempt }}
       - name: cache Contiki
-        if matrix.BUILD == 'contiki'
+        if: matrix.BUILD == 'contiki'
         id: cache_contiki_ng
         uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/download/contiki-ng
           key: contiki-${{ runner.os }}-${{ runner.arch }}-${{ env.WITH_CONTIKI_NG_BRANCH }}-full
       - name: cache LwIP
-        if matrix.BUILD == 'lwip'
+        if: matrix.BUILD == 'lwip'
         id: cache_lwip
         uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/download/lwip
           key: lwip-${{ runner.os }}-${{ runner.arch }}-${{ env.WITH_LWIP_BRANCH }}-full
       - name: cache Zephyr
-        if matrix.BUILD == 'zephyr'
+        if: matrix.BUILD == 'zephyr'
         id: cache_zephyr
         uses: actions/cache@v6
         with:
