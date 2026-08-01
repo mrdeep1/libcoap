@@ -134,7 +134,7 @@ jobs:
         run: |
           cd build-dist
           make dist
-          cp -f build-dist/libcoap-*.tar.bz2 ${{ runner.temp }}
+          cp -f libcoap-*.tar.bz2 ${{ runner.temp }}
   distribution-contiki-build:
     needs: distribution-tarball
     runs-on: ubuntu-latest
