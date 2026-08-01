@@ -147,7 +147,7 @@ jobs:
           submodules: recursive
       - uses: actions/checkout@v6
       - name: setup other
-        if: matrix.BUILD == 'contiki' or matrix.BUILD == 'lwip' or matrix.BUILD == 'riot' or matrix.BUILD == 'zephyr' or matrix.BUILD == 'cmake'
+        if: matrix.BUILD == 'contiki' || matrix.BUILD == 'lwip' || matrix.BUILD == 'riot' || matrix.BUILD == 'zephyr' || matrix.BUILD == 'cmake'
         run: |
           sudo apt-get install -y libc6-dev-i386 lib32stdc++-13-dev
       - name: setup autogen
