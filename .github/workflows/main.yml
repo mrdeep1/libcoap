@@ -139,7 +139,7 @@ jobs:
     needs: distribution-tarball
     runs-on: ubuntu-latest
     matrix:
-        BUILD: ["contiki", "lwip", "riot", "zephyr", "autogen", "cmake" ]
+        BUILD: ["contiki", "lwip", "riot", "zephyr", "autogen", "cmake"]
     steps:
       - uses: actions/checkout@v6
         with:
