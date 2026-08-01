@@ -9,7 +9,7 @@
 # and COPYING for terms of use.
 #
 if [ "x$1" = "x" ] ; then
-    echo "Need a parameter, one of contiki, lwip, riot. zephyr, autogen or cmake.
+    echo "Need a parameter, one of contiki, lwip, riot. zephyr, autogen or cmake."
     exit 0
 fi
 
