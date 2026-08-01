@@ -138,6 +138,7 @@ jobs:
   distribution-builds:
     needs: distribution-tarball
     runs-on: ubuntu-latest
+    strategy:
     matrix:
         BUILD: ["contiki", "lwip", "riot", "zephyr", "autogen", "cmake"]
     steps:
