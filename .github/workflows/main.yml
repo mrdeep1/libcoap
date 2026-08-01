@@ -128,14 +128,13 @@ jobs:
         id: cache_tarball
         uses: actions/cache@v6
         with:
-          path: $GITHUB_WORKSPACE/build-dist/libcoap-*.tar.bz2
+          path: ${{ runner.temp }}/libcoap-*.tar.bz2
           key: cache-${{ github.run_id }}-${{ github.run_attempt }}
       - name: build distribution
         run: |
           cd build-dist
           make dist
-          ls
-          ls $GITHUB_WORKSPACE//build-dist/libcoap-*.tar.bz2
+          cp -f build-dist/libcoap-*.tar.bz2 ${{ runner.temp }}
   distribution-contiki-build:
     needs: distribution-tarball
     runs-on: ubuntu-latest
@@ -152,7 +151,7 @@ jobs:
         id: cache_tarball
         uses: actions/cache@v6
         with:
-          path: $GITHUB_WORKSPACE//build-dist/libcoap-*.tar.bz2
+          path: ${{ runner.temp }}/libcoap-*.tar.bz2
           key: cache-${{ github.run_id }}-${{ github.run_attempt }}
       - name: cache Contiki
         id: cache_contiki_ng
@@ -175,5 +174,6 @@ jobs:
       - name: check distribution build
         run: |
           cd build-dist
+          cp -f ${{ runner.temp }}/libcoap-*.tar.bz2 .
           $GITHUB_WORKSPACE/scripts/github_dist.sh
         shell: bash
