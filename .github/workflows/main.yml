@@ -187,5 +187,5 @@ jobs:
           mkdir -p build-dist
           cd build-dist
           cp -f ${{ runner.temp }}/libcoap-*.tar.bz2 .
-          $GITHUB_WORKSPACE/scripts/github_dist.sh $matrix.BUILD
+          $GITHUB_WORKSPACE/scripts/github_dist.sh ${{matrix.BUILD}}
         shell: bash
