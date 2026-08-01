@@ -52,6 +52,7 @@ if test $err = 0 -a "x$ARCHIVE" != "x"; then
         if [ $err != 0 ] ; then
             exit 1
         fi
+        ;;
     zephyr)
         # Zephyr
         cp -a $RUNNER_TEMP/download/zephyrproject $DIR/examples/zephyr
