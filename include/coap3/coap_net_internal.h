@@ -37,7 +37,8 @@ extern "C" {
  * Queue entry
  */
 struct coap_queue_t {
-  struct coap_queue_t *next;
+  struct coap_queue_t *next;    /**< DL next entry */
+  struct coap_queue_t *prev;    /**< DL prev entry */
   coap_tick_t t;                /**< when to send PDU for the next time */
   unsigned char retransmit_cnt; /**< retransmission counter, will be removed
                                  *    when zero */

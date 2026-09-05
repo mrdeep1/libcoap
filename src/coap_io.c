@@ -662,7 +662,6 @@ release_1:
       } else {
         /* Session set up has failed */
         coap_queue_t *sent;
-        coap_queue_t *p = NULL;
         coap_queue_t *q;
         coap_queue_t *tmp;
 
@@ -692,7 +691,7 @@ release_1:
          * The test packet may be in the delayqueue ((D)TLS has not been set up),
          * or in the sendqueue if sent and is pending re-transmission.
          */
-        LL_FOREACH_SAFE(s->delayqueue, q, tmp) {
+        DL_FOREACH_SAFE(s->delayqueue, q, tmp) {
           if (q->id == s->remote_test_mid) {
             if (q->pdu->type==COAP_MESSAGE_CON) {
               coap_handle_nack(s, q->pdu,
@@ -702,15 +701,10 @@ release_1:
             }
             coap_log_debug("** %s: mid=0x%04x: removed\n",
                            coap_session_str(s), q->id);
-            if (p) {
-              p->next = q->next;
-            } else {
-              s->delayqueue = q->next;
-            }
+            DL_DELETE(s->delayqueue, q);
             coap_delete_node_lkd(q);
             break;
           }
-          p = q;
         }
         coap_remove_from_queue(&ctx->sendqueue, s, s->remote_test_mid, s->last_token, &sent);
         if (sent) {

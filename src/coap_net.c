@@ -2623,11 +2623,12 @@ coap_connect_session(coap_session_t *session, coap_tick_t now) {
 static void
 coap_write_session(coap_context_t *ctx, coap_session_t *session, coap_tick_t now) {
   (void)ctx;
+  coap_queue_t *q;
+  coap_queue_t *tmp;
   assert(session->sock.flags & COAP_SOCKET_CONNECTED);
 
-  while (session->delayqueue) {
+  DL_FOREACH_SAFE(session->delayqueue, q, tmp) {
     ssize_t bytes_written;
-    coap_queue_t *q = session->delayqueue;
 
     coap_address_copy(&session->addr_info.remote, &q->remote);
     coap_log_debug("** %s: mid=0x%04x: transmitted after delay (1)\n",
@@ -2644,8 +2645,8 @@ coap_write_session(coap_context_t *ctx, coap_session_t *session, coap_tick_t now
         session->partial_write += (size_t)bytes_written;
       break;
     }
-    session->delayqueue = q->next;
     session->partial_write = 0;
+    DL_DELETE(session->delayqueue, q);
     coap_delete_node_lkd(q);
   }
 }

@@ -563,13 +563,14 @@ coap_session_mfree(coap_session_t *session) {
   }
 #endif /* COAP_CLIENT_SUPPORT */
 
-  LL_FOREACH_SAFE(session->delayqueue, q, tmp) {
+  DL_FOREACH_SAFE(session->delayqueue, q, tmp) {
     if (q->pdu->type==COAP_MESSAGE_CON) {
       coap_handle_nack(session, q->pdu,
                        session->proto == COAP_PROTO_DTLS ?
                        COAP_NACK_TLS_FAILED : COAP_NACK_NOT_DELIVERABLE,
                        q->id);
     }
+    DL_DELETE(session->delayqueue, q);
     coap_delete_node_lkd(q);
   }
 
@@ -678,6 +679,8 @@ coap_session_free(coap_session_t *session) {
 void
 coap_session_server_keepalive_failed(coap_session_t *session) {
   int i;
+  coap_queue_t *q;
+  coap_queue_t *tmp;
 
   coap_session_reference_lkd(session);
   coap_handle_event_lkd(session->context, COAP_EVENT_KEEPALIVE_FAILURE, session);
@@ -703,10 +706,8 @@ coap_session_server_keepalive_failed(coap_session_t *session) {
         break;
     }
   }
-  while (session->delayqueue) {
-    coap_queue_t *q = session->delayqueue;
-
-    session->delayqueue = q->next;
+  DL_FOREACH_SAFE(session->delayqueue, q, tmp) {
+    DL_DELETE(session->delayqueue, q);
     coap_delete_node_lkd(q);
   }
   /* Force session to go away */
@@ -835,7 +836,7 @@ coap_session_delay_pdu(coap_session_t *session, coap_pdu_t *pdu,
     if (COAP_PROTO_NOT_RELIABLE(session->proto)) {
       coap_queue_t *q = NULL;
       /* Check same mid is not getting reused in violation of RFC7252 */
-      LL_FOREACH(session->delayqueue, q) {
+      DL_FOREACH(session->delayqueue, q) {
         if (q->id == pdu->mid) {
           coap_log_err("** %s: mid=0x%04x: already in-use - dropped\n",
                        coap_session_str(session), pdu->mid);
@@ -856,7 +857,7 @@ coap_session_delay_pdu(coap_session_t *session, coap_pdu_t *pdu,
     }
     coap_address_copy(&node->remote, &session->addr_info.remote);
   }
-  LL_APPEND(session->delayqueue, node);
+  DL_APPEND(session->delayqueue, node);
   coap_show_pdu(COAP_LOG_DEBUG, node->pdu);
   coap_log_debug("** %s: mid=0x%04x: delayed\n",
                  coap_session_str(session), node->id);
@@ -987,8 +988,7 @@ coap_session_connected(coap_session_t *session) {
       session->con_active++;
     }
     /* Take entry off the queue */
-    session->delayqueue = q->next;
-    q->next = NULL;
+    DL_DELETE(session->delayqueue, q);
 
     coap_address_copy(&remote, &session->addr_info.remote);
     coap_address_copy(&session->addr_info.remote, &q->remote);
@@ -1007,8 +1007,8 @@ coap_session_connected(coap_session_t *session) {
         break;
     } else if (q) {
       if (bytes_written <= 0 || (size_t)bytes_written < q->pdu->used_size + q->pdu->hdr_size) {
-        q->next = session->delayqueue;
-        session->delayqueue = q;
+        /* Put back on the list for a retry / completion */
+        DL_PREPEND(session->delayqueue, q);
         if (bytes_written > 0)
           session->partial_write = (size_t)bytes_written;
         break;
@@ -1096,6 +1096,7 @@ coap_session_disconnected_lkd(coap_session_t *session, coap_nack_reason_t reason
 #endif /* COAP_CLIENT_SUPPORT */
   int sent_nack = 0;
   coap_queue_t *q;
+  coap_queue_t *tmp;
 
   coap_lock_check_locked();
 #if COAP_CLIENT_SUPPORT
@@ -1113,10 +1114,7 @@ coap_session_disconnected_lkd(coap_session_t *session, coap_nack_reason_t reason
     q = q->next;
   }
 
-  while (session->delayqueue) {
-    q = session->delayqueue;
-    session->delayqueue = q->next;
-    q->next = NULL;
+  DL_FOREACH_SAFE(session->delayqueue, q, tmp) {
     coap_log_debug("** %s: mid=0x%04x: not transmitted after disconnect\n",
                    coap_session_str(session), q->id);
     if (q->pdu->type == COAP_MESSAGE_CON) {
@@ -1124,6 +1122,7 @@ coap_session_disconnected_lkd(coap_session_t *session, coap_nack_reason_t reason
       sent_nack = 1;
     }
 
+    DL_DELETE(session->delayqueue, q);
     coap_delete_node_lkd(q);
   }
 #if COAP_CLIENT_SUPPORT
@@ -1161,15 +1160,13 @@ coap_session_disconnected_lkd(coap_session_t *session, coap_nack_reason_t reason
   session->partial_read = 0;
 
   /* Not done if nack handler called above */
-  while (session->delayqueue) {
-    q = session->delayqueue;
-    session->delayqueue = q->next;
-    q->next = NULL;
+  DL_FOREACH_SAFE(session->delayqueue, q, tmp) {
     coap_log_debug("** %s: mid=0x%04x: not transmitted after disconnect\n",
                    coap_session_str(session), q->id);
 #if COAP_CLIENT_SUPPORT
     session->doing_send_recv = 0;
 #endif /* COAP_CLIENT_SUPPORT */
+    DL_DELETE(session->delayqueue, q);
     coap_delete_node_lkd(q);
   }
 

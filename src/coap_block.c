@@ -2279,11 +2279,9 @@ coap_send_q_blocks(coap_session_t *session,
   if (pdu->type == COAP_MESSAGE_CON) {
     coap_queue_t *delayqueue;
 
-    delayqueue_cnt = session->con_active +
-                     (send_pdu == COAP_SEND_INC_PDU ? 1 : 0);
-    LL_FOREACH(session->delayqueue, delayqueue) {
-      delayqueue_cnt++;
-    }
+    DL_COUNT(session->delayqueue, delayqueue, delayqueue_cnt);
+    delayqueue_cnt += session->con_active +
+                      (send_pdu == COAP_SEND_INC_PDU ? 1 : 0);
   }
   pdu->lg_xmit = lg_xmit;
 
