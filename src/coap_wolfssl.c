@@ -2085,7 +2085,7 @@ coap_dtls_new_server_session(coap_session_t *session) {
 #if defined(WOLFSSL_DTLS_CID) && defined(WOLFSSL_DTLS13)
 
 #if COAP_DTLS_CID_LENGTH > DTLS_CID_MAX_SIZE
-#bad COAP_DTLS_CID_LENGTH > DTLS_CID_MAX_SIZE
+#error COAP_DTLS_CID_LENGTH > DTLS_CID_MAX_SIZE
 #endif /* COAP_DTLS_CID_LENGTH > DTLS_CID_MAX_SIZE */
 
   if (wolfSSL_dtls_cid_use(ssl) != WOLFSSL_SUCCESS)
