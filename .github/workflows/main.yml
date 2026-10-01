@@ -28,7 +28,7 @@ env:
 
 jobs:
   do-caches:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - name: cache openHiTLS
@@ -109,7 +109,7 @@ jobs:
           cd ../../
           deactivate
   pre-commit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -117,7 +117,7 @@ jobs:
           python-version: 3.x
       - uses: pre-commit/action@v3.0.1
   scan-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - name: setup
@@ -129,7 +129,7 @@ jobs:
           ./configure --disable-documentation --disable-doxygen --disable-man --enable-examples --enable-tests --disable-dtls
           scan-build --status-bugs make V=0
   check-missing-updates:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - name: setup
@@ -144,7 +144,7 @@ jobs:
           scripts/check-missing-updates.sh
   build-linux:
     needs: do-caches
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         CC: ["gcc", "clang"]
@@ -190,7 +190,7 @@ jobs:
           examples/coap-server -? 2>&1 | head -10
   build-linux2:
     needs: do-caches
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         CC: ["gcc", "clang"]
@@ -236,7 +236,7 @@ jobs:
           libtool --mode=execute valgrind --track-origins=yes --leak-check=yes --show-reachable=yes --error-exitcode=123 --quiet --suppressions=$GITHUB_WORKSPACE/tests/valgrind_suppression tests/testdriver
           examples/coap-server -? 2>&1 | head -10
   tinydtls-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
         with:
@@ -256,7 +256,7 @@ jobs:
           LD_LIBRARY_PATH=ext/tinydtls libtool --mode=execute valgrind --track-origins=yes --leak-check=yes --show-reachable=yes --error-exitcode=123 --quiet --suppressions=$GITHUB_WORKSPACE/tests/valgrind_suppression tests/testdriver
   cmake-build:
     needs: do-caches
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         TLS: ["no", "openssl", "gnutls", "mbedtls", "wolfssl", "tinydtls", "openhitls"]
@@ -301,7 +301,7 @@ jobs:
           ./coap-server -? 2>&1 | head -10
   cmake-build2:
     needs: do-caches
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         TLS: ["mbedtls", "openhitls"]
@@ -375,7 +375,7 @@ jobs:
         gmake -C examples/contiki
   other-build:
     needs: do-caches
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         OS: ["contiki", "lwip", "riot", "zephyr"]
@@ -503,7 +503,7 @@ jobs:
           scripts/mingw-cmake.sh
 
   additional-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
         with:
@@ -520,7 +520,7 @@ jobs:
           make  EXTRA_CFLAGS=-Werror -C tests/oss-fuzz -f Makefile.ci check clean
 
   documentation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: pre-commit
     steps:
       - uses: actions/checkout@v6
@@ -546,7 +546,7 @@ jobs:
           make install && ls -lR $GITHUB_WORKSPACE/test-install
   distribution-tarball:
     needs: do-caches
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
         with:
@@ -573,7 +573,7 @@ jobs:
           cp -f libcoap-*.tar.bz2 ${{ runner.temp }}
   distribution-builds:
     needs: distribution-tarball
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         BUILD: ["contiki", "lwip", "riot", "zephyr", "autogen", "cmake"]
