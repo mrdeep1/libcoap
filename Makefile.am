@@ -187,7 +187,7 @@ EXTRA_DIST += $(libcoap_OSCORE_sources)
 endif # !COAP_OSCORE_SUPPORT
 
 AM_CFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include $(WARNING_CFLAGS) \
-            $(DTLS_CFLAGS) -std=c99 $(EXTRA_CFLAGS) \
+            $(DTLS_CFLAGS) -std=c11 $(EXTRA_CFLAGS) \
             -DLIBCOAP_PACKAGE_BUILD='"$(LIBCOAP_PACKAGE_BUILD)"'
 
 SUBDIRS = $(subdirs) . man doc tests examples
