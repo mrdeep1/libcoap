@@ -31,6 +31,9 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
+      - name: Install west
+        run: |
+          pip3 install --user -U west
       - name: cache openHiTLS
         id: cache_openhitls
         uses: actions/cache@v6
@@ -461,6 +464,7 @@ jobs:
       - name: install Zephyr
         if: matrix.OS == 'zephyr'
         run: |
+          pip3 install --user -U west
           rm -f examples/zephyr/zephyrproject
           mkdir -p examples/zephyr/zephyrproject
           cp -a $RUNNER_TEMP/download/zephyrproject examples/zephyr
@@ -629,6 +633,10 @@ jobs:
         if: matrix.BUILD == 'contiki' || matrix.BUILD == 'lwip' || matrix.BUILD == 'riot' || matrix.BUILD == 'zephyr'
         run: |
           sudo apt-get update && sudo apt-get install -y libc6-dev-i386 lib32stdc++-13-dev
+      - name: setup zephyr-other
+        if: matrix.BUILD == 'zephyr'
+        run: |
+          pip3 install --user -U west
       - name: setup autogen
         if: matrix.BUILD == 'autogen'
         run: |
