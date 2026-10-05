@@ -28,7 +28,7 @@ env:
 
 jobs:
   do-caches:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - name: cache openHiTLS
@@ -110,7 +110,7 @@ jobs:
           deactivate
 
   pre-commit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -119,7 +119,7 @@ jobs:
       - uses: pre-commit/action@v3.0.1
 
   scan-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - name: setup
@@ -132,7 +132,7 @@ jobs:
           scan-build --status-bugs make V=0
 
   check-missing-updates:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - name: setup
@@ -148,7 +148,7 @@ jobs:
 
   build-linux:
     needs: do-caches
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         CC: ["gcc", "clang"]
@@ -195,7 +195,7 @@ jobs:
 
   build-linux2:
     needs: do-caches
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         CC: ["gcc", "clang"]
@@ -242,7 +242,7 @@ jobs:
           examples/coap-server -? 2>&1 | head -10
 
   build-linux-sanitizer:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         BITS: ["32", "64" ]
@@ -269,7 +269,7 @@ jobs:
           tests/testdriver
 
   tinydtls-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
         with:
@@ -290,7 +290,7 @@ jobs:
 
   cmake-build:
     needs: do-caches
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         TLS: ["no", "openssl", "gnutls", "mbedtls", "wolfssl", "tinydtls", "openhitls"]
@@ -336,7 +336,7 @@ jobs:
 
   cmake-build2:
     needs: do-caches
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         TLS: ["mbedtls", "openhitls"]
@@ -413,7 +413,7 @@ jobs:
 
   other-build:
     needs: do-caches
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         OS: ["contiki", "lwip", "riot", "zephyr"]
@@ -544,7 +544,7 @@ jobs:
           scripts/mingw-cmake.sh
 
   additional-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
         with:
@@ -561,7 +561,7 @@ jobs:
           make  EXTRA_CFLAGS=-Werror -C tests/oss-fuzz -f Makefile.ci check clean
 
   documentation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: pre-commit
     steps:
       - uses: actions/checkout@v6
@@ -588,7 +588,7 @@ jobs:
 
   distribution-tarball:
     needs: do-caches
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
         with:
@@ -616,7 +616,7 @@ jobs:
 
   distribution-builds:
     needs: distribution-tarball
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         BUILD: ["contiki", "lwip", "riot", "zephyr", "autogen", "cmake"]
