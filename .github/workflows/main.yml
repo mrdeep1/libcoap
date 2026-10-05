@@ -464,12 +464,7 @@ jobs:
         if: matrix.OS == 'zephyr'
         run: |
           rm -f examples/zephyr/zephyrproject
-          mkdir -p examples/zephyr/zephyrproject
-          cp -a $RUNNER_TEMP/download/zephyrproject examples/zephyr
-          python3 -m venv zephyrproject/.venv
-          . zephyrproject/.venv/bin/activate
-          pip install west
-          (cd examples/zephyr/zephyrproject/zephyr/zephyr-sdk* ; cmake -P cmake/zephyr_sdk_export.cmake)
+          ln -s $RUNNER_TEMP/download/zephyrproject examples/zephyr/zephyrproject
       - name: compile
         run: |
           make -C examples/${{matrix.OS}} EXTRA_CFLAGS=-Werror

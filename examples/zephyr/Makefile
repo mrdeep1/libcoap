@@ -46,12 +46,14 @@ coap-client: client-src/src/main.c client-src/* ../../src/*.c ../../include/*/*
 	  . $(ZEPHYR_PROJECT)/.venv/bin/activate ;\
 	fi ;\
 	cd $(ZEPHYR_PROJECT)/zephyr ;\
+	echo Doing west ;\
 	west build -p always -b native_sim \
 		$${LIBCOAP_DIR}/examples/zephyr/client-src -- \
 		-DCONF_FILE=prj.conf \
 		-DEXTRA_ZEPHYR_MODULES=$${LIBCOAP_DIR} \
 		-DCMAKE_C_FLAGS="-DMBEDTLS_VERSION_C -Werror" \
 		-DEXTRA_CONF_FILE=libcoap-mbedtls.conf)
+	echo Done west ;\
 	@cp -f $(ZEPHYR_PROJECT)/zephyr/build/zephyr/zephyr.exe coap-client
 	@rm -rf $(ZEPHYR_PROJECT)/zephyr/build
 
