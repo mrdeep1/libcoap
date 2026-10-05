@@ -99,7 +99,6 @@ jobs:
           mkdir -p "$RUNNER_TEMP/download"
           cd "$RUNNER_TEMP/download"
           python3 -m venv zephyrproject/.venv
-          ls -l zephyrproject/.venv/bin/activate
           . zephyrproject/.venv/bin/activate
           pip install west
           west init --mr ${WITH_ZEPHYR_BRANCH} zephyrproject
@@ -464,11 +463,12 @@ jobs:
       - name: install Zephyr
         if: matrix.OS == 'zephyr'
         run: |
-          pip3 install --user -U west
           rm -f examples/zephyr/zephyrproject
           mkdir -p examples/zephyr/zephyrproject
           cp -a $RUNNER_TEMP/download/zephyrproject examples/zephyr
           (cd examples/zephyr/zephyrproject/zephyr/zephyr-sdk* ; cmake -P cmake/zephyr_sdk_export.cmake)
+          . examples/zephyr/zephyrproject/.venv/bin/activate
+          pip install west
       - name: compile
         run: |
           make -C examples/${{matrix.OS}} EXTRA_CFLAGS=-Werror
