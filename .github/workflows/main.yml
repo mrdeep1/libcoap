@@ -95,7 +95,7 @@ jobs:
       - name: download Zephyr
         if: steps.cache_zephyr.outputs.cache-hit != 'true'
         run: |
-          rm -rf "$RUNNER_TEMP/download//download/zephyrproject"
+          rm -rf "$RUNNER_TEMP/download/zephyrproject"
           mkdir -p "$RUNNER_TEMP/download"
           cd "$RUNNER_TEMP/download"
           python3 -m venv zephyrproject/.venv
@@ -466,9 +466,10 @@ jobs:
           rm -f examples/zephyr/zephyrproject
           mkdir -p examples/zephyr/zephyrproject
           cp -a $RUNNER_TEMP/download/zephyrproject examples/zephyr
-          (cd examples/zephyr/zephyrproject/zephyr/zephyr-sdk* ; cmake -P cmake/zephyr_sdk_export.cmake)
-          . examples/zephyr/zephyrproject/.venv/bin/activate
+          python3 -m venv zephyrproject/.venv
+          . zephyrproject/.venv/bin/activate
           pip install west
+          (cd examples/zephyr/zephyrproject/zephyr/zephyr-sdk* ; cmake -P cmake/zephyr_sdk_export.cmake)
       - name: compile
         run: |
           make -C examples/${{matrix.OS}} EXTRA_CFLAGS=-Werror
