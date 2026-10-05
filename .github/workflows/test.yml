@@ -163,7 +163,9 @@ jobs:
         run: |
           rm -f examples/zephyr/zephyrproject
           ln -s $RUNNER_TEMP/download/zephyrproject examples/zephyr/zephyrproject
-          ls -ld $RUNNER_TEMP/download/zephyrproject examples/zephyr/zephyrproject
+          ls -la $RUNNER_TEMP/download/zephyrproject examples/zephyr/zephyrproject
+          . zephyrproject/.venv/bin/activate
+          pip install west
       - name: compile
         run: |
           make -C examples/${{matrix.OS}} EXTRA_CFLAGS=-Werror
