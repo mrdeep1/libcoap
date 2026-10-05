@@ -24,6 +24,7 @@ ${ZEPHYR_PROJECT}:
 
 check-version:
 	@(if [ -d $(ZEPHYR_PROJECT)/zephyr ] ; then \
+		echo Doing check-version ;\
 		cd $(ZEPHYR_PROJECT)/zephyr ; \
 		TAG=`git describe --tags --all`; \
 		if [ "$$TAG" != ${WITH_ZEPHYR_BRANCH} -a "$$TAG" != "tags/${WITH_ZEPHYR_BRANCH}" ] ; then \
@@ -38,8 +39,10 @@ check-version:
 	fi)
 
 coap-client: client-src/src/main.c client-src/* ../../src/*.c ../../include/*/*
+	echo Doing coap-client
 	@LIBCOAP_DIR=`pwd`/../.. ;\
 	(if [ -f $(ZEPHYR_PROJECT)/.venv/bin/activate ]; then \
+	  echo Doing activate ;\
 	  . $(ZEPHYR_PROJECT)/.venv/bin/activate ;\
 	fi ;\
 	cd $(ZEPHYR_PROJECT)/zephyr ;\
