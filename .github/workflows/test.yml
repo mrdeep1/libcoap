@@ -31,8 +31,9 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
-      - name: Install west
+      - name: Install requirements
         run: |
+          sudo apt-get update && sudo apt-get install -y libc6-dev-i386 lib32stdc++-13-dev
           pip3 install --user -U west
       - name: cache openHiTLS
         id: cache_openhitls
@@ -105,7 +106,7 @@ jobs:
           west zephyr-export
           west packages pip --install
           cd zephyr
-          west sdk install --install-base=zephyrproject/../ -t x86_64-zephyr-elf
+          west sdk install --install-base=zephyrproject/../ -T
           cd ../../
           deactivate
 
