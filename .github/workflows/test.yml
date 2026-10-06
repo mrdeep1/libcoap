@@ -102,7 +102,6 @@ jobs:
           west zephyr-export
           west packages pip --install
           cd zephyr
-          sleep 10
           west sdk install --install-base=zephyrproject/../ -T
           cd ../../
           deactivate
