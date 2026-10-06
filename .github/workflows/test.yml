@@ -89,7 +89,7 @@ jobs:
         id: cache_zephyr
         uses: actions/cache@v6
         with:
-          path: ${{ GITHUB_WORKSPACE }}/examples/zephyr/zephyrproject
+          path: $(( github.workspace }}/examples/zephyr/zephyrproject
           key: zephyr-${{ runner.os }}-${{ runner.arch }}-${{ env.WITH_ZEPHYR_BRANCH }}-test
           lookup-only: true
       - name: download Zephyr
@@ -154,7 +154,7 @@ jobs:
         id: cache_zephyr
         uses: actions/cache@v6
         with:
-          path: ${{ GITHUB_WORKSPACE }}/examples/zephyr/zephyrproject
+          path: ${{ github.workspace }}/examples/zephyr/zephyrproject
           key: zephyr-${{ runner.os }}-${{ runner.arch }}-${{ env.WITH_ZEPHYR_BRANCH }}-test
       - name: compile
         run: |
