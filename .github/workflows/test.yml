@@ -89,15 +89,13 @@ jobs:
         id: cache_zephyr
         uses: actions/cache@v6
         with:
-          path: ${{ runner.temp }}/download/zephyrproject
-          key: zephyr-${{ runner.os }}-${{ runner.arch }}-${{ env.WITH_ZEPHYR_BRANCH }}-full
+          path: ${{ $GITHUB_WORKSPACE }}/examples/zephyr/zephyrproject
+          key: zephyr-${{ runner.os }}-${{ runner.arch }}-${{ env.WITH_ZEPHYR_BRANCH }}-test
           lookup-only: true
       - name: download Zephyr
         if: steps.cache_zephyr.outputs.cache-hit != 'true'
         run: |
-          rm -rf "$RUNNER_TEMP/download/zephyrproject"
-          mkdir -p "$RUNNER_TEMP/download"
-          cd "$RUNNER_TEMP/download"
+          cd examples/zephyr
           python3 -m venv zephyrproject/.venv
           . zephyrproject/.venv/bin/activate
           pip install west
@@ -156,17 +154,8 @@ jobs:
         id: cache_zephyr
         uses: actions/cache@v6
         with:
-          path: ${{ runner.temp }}/download/zephyrproject
-          key: zephyr-${{ runner.os }}-${{ runner.arch }}-${{ env.WITH_ZEPHYR_BRANCH }}-full
-      - name: install Zephyr
-        if: matrix.OS == 'zephyr'
-        run: |
-          rm -f examples/zephyr/zephyrproject
-          ln -s $RUNNER_TEMP/download/zephyrproject examples/zephyr/zephyrproject
-          ls -la $RUNNER_TEMP/download/zephyrproject examples/zephyr/zephyrproject
-          cd examples/zephyr
-          . zephyrproject/.venv/bin/activate
-          cd ../..
+          path: ${{ $GITHUB_WORKSPACE }}/examples/zephyr/zephyrproject
+          key: zephyr-${{ runner.os }}-${{ runner.arch }}-${{ env.WITH_ZEPHYR_BRANCH }}-test
       - name: compile
         run: |
           make -C examples/${{matrix.OS}} EXTRA_CFLAGS=-Werror
