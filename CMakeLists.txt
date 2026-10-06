@@ -251,10 +251,6 @@ option(
   WARNING_TO_ERROR
   "force all compiler warnings to be errors"
   OFF)
-option(
-  ENABLE_SANITIZER
-  "enable AddressSanitizer (ASan) and UndefinedBehaviorSanitizer (UBSan)"
-  OFF)
 set(MAX_LOGGING_LEVEL
     "8"
     CACHE
@@ -278,6 +274,11 @@ set_property(
 else() # ! ZEPHYR_BASE
   # provided by zephyr/CMakeLists.txt and zephyr/Kconfig
 endif() # ! ZEPHYR_BASE
+
+option(
+  ENABLE_SANITIZER
+  "enable AddressSanitizer (ASan) and UndefinedBehaviorSanitizer (UBSan)"
+  OFF)
 
 if(NOT CMAKE_C_STANDARD)
   set(CMAKE_C_STANDARD 11)
