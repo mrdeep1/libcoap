@@ -31,10 +31,6 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
-      - name: Install requirements
-        run: |
-          sudo apt-get update && sudo apt-get install -y libc6-dev-i386 lib32stdc++-13-dev
-          pip3 install --user -U west
       - name: cache openHiTLS
         id: cache_openhitls
         uses: actions/cache@v6
