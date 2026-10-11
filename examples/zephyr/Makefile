@@ -10,13 +10,13 @@ all: check-version $(ZEPHYR_PROJECT) coap-client coap-cpp-test
 ${ZEPHYR_PROJECT}:
 	python3 -m venv ${ZEPHYR_PROJECT}/.venv ;\
 	ls -l ${ZEPHYR_PROJECT}/.venv/bin/activate ;\
-	. ${ZEPHYR_PROJECT}/.venv/bin/activate ;\
+	source ${ZEPHYR_PROJECT}/.venv/bin/activate ;\
 	pip install west ;\
-	west init --mr ${WITH_ZEPHYR_BRANCH} ${ZEPHYR_PROJECT} ;\
+	west init -m https://github.com/zephyrproject-rtos/zephyr --mr ${WITH_ZEPHYR_BRANCH} ${ZEPHYR_PROJECT} ;\
 	cd ${ZEPHYR_PROJECT} ;\
-	west update -n ;\
-	west zephyr-export ;\
+	west update ;\
 	west packages pip --install ;\
+	west zephyr-export ;\
 	cd zephyr ;\
 	west sdk install --install-base=$(ZEPHYR_PROJECT)/../ -T ;\
 	cd $(LCWD) ;\
