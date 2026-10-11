@@ -20,6 +20,7 @@ ${ZEPHYR_PROJECT}:
 	cd zephyr ;\
 	ls -l /usr/local/bin/cmake ;\
 	which cmake ;\
+	dpkg -S /usr/local/bin/cmake ;\
 	apt list --installed | grep cmake ;\
 	cat /home/runner/work/libcoap/libcoap/examples/zephyr/zephyrproject/zephyr/scripts/west_commands/sdk/listsdk.cmake ;\
 	west sdk install --install-base=${LCWD}/${ZEPHYR_PROJECT}/zephyr -T ;\
