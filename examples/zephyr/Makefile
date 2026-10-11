@@ -20,6 +20,7 @@ ${ZEPHYR_PROJECT}:
 	cd zephyr ;\
 	ls -l /usr/local/bin/cmake ;\
 	which cmake ;\
+	apt list --installed | grep cmake \;
 	west sdk install --install-base=${LCWD}/${ZEPHYR_PROJECT}/zephyr -T ;\
 	cd $(LCWD) ;\
 	deactivate
