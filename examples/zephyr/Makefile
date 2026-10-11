@@ -18,7 +18,9 @@ ${ZEPHYR_PROJECT}:
 	west packages pip --install ;\
 	west zephyr-export ;\
 	cd zephyr ;\
-	west sdk install --install-base=${ZEPHYR_PROJECT}/../ -T ;\
+	ls -l /usr/local/bin/cmake ;\
+	which cmake ;\
+	west sdk install --install-base=${LCWD}/${ZEPHYR_PROJECT}/zephyr -T ;\
 	cd $(LCWD) ;\
 	deactivate
 
