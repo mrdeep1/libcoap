@@ -14,11 +14,11 @@ ${ZEPHYR_PROJECT}:
 	pip install west ;\
 	west init -m https://github.com/zephyrproject-rtos/zephyr --mr ${WITH_ZEPHYR_BRANCH} ${ZEPHYR_PROJECT} ;\
 	cd ${ZEPHYR_PROJECT} ;\
-	west update ;\
+	west update -n ;\
 	west packages pip --install ;\
 	west zephyr-export ;\
 	cd zephyr ;\
-	west sdk install --install-base=$(ZEPHYR_PROJECT)/../ -T ;\
+	west sdk install --install-base=${ZEPHYR_PROJECT}/../ -T ;\
 	cd $(LCWD) ;\
 	deactivate
 
