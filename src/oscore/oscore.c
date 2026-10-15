@@ -198,36 +198,39 @@ oscore_prepare_e_aad(oscore_ctx_t *ctx,
         oscore_cbor_put_number(&external_aad_ptr, &rem_size, ctx->aead_alg);
 #if COAP_OSCORE_GROUP_SUPPORT
   } else {
-    /* Algoritms array with 4 items */
+    /*
+     * Algoritms array with 4 items. draft-ietf-core-oscore-groupcomm-28
+     * Section 3.4: each entry is the algorithm from the Common Context,
+     * "regardless of whether the endpoint supports" the group or the pairwise
+     * mode, and the CBOR simple value null only if it is not set.
+     */
     external_aad_len += oscore_cbor_put_array(&external_aad_ptr, &rem_size, 4);
-
-    if (mode == OSCORE_MODE_GROUP) {
-      /* alg_aead */
+    /* alg_aead */
+    if (ctx->aead_alg)
       external_aad_len +=
           oscore_cbor_put_number(&external_aad_ptr, &rem_size, ctx->aead_alg);
-      /* alg_group_enc */
+    else
+      external_aad_len += oscore_cbor_put_nil(&external_aad_ptr, &rem_size);
+    /* alg_group_enc */
+    if (ctx->alg_group_enc)
       external_aad_len += oscore_cbor_put_number(&external_aad_ptr,
                                                  &rem_size,
                                                  ctx->alg_group_enc);
-      /* alg_signature */
+    else
+      external_aad_len += oscore_cbor_put_nil(&external_aad_ptr, &rem_size);
+    /* alg_signature */
+    if (ctx->alg_signature)
       external_aad_len +=
           oscore_cbor_put_number(&external_aad_ptr, &rem_size, ctx->alg_signature);
-      /* alg_pairwise_key_agreement */
+    else
       external_aad_len += oscore_cbor_put_nil(&external_aad_ptr, &rem_size);
-    } else {
-      /* OSCORE_MODE_PAIRWISE */
-      /* alg_aead */
-      external_aad_len +=
-          oscore_cbor_put_number(&external_aad_ptr, &rem_size, ctx->aead_alg);
-      /* alg_group_enc */
-      external_aad_len += oscore_cbor_put_nil(&external_aad_ptr, &rem_size);
-      /* alg_signature */
-      external_aad_len += oscore_cbor_put_nil(&external_aad_ptr, &rem_size);
-      /* alg_pairwise_key_agreement */
+    /* alg_pairwise_key_agreement */
+    if (ctx->alg_pairwise_key_agreement)
       external_aad_len += oscore_cbor_put_number(&external_aad_ptr,
                                                  &rem_size,
                                                  ctx->alg_pairwise_key_agreement);
-    }
+    else
+      external_aad_len += oscore_cbor_put_nil(&external_aad_ptr, &rem_size);
   }
 #endif /* COAP_OSCORE_GROUP_SUPPORT */
   /* request_kid */

@@ -23,7 +23,14 @@
 #if COAP_OSCORE_SUPPORT
 #include <ctype.h>
 
-#define AAD_BUF_LEN 200 /* length of aad_buffer */
+/*
+ * draft-ietf-core-oscore-groupcomm-28 Section 3.4: the Group OSCORE
+ * external_aad carries the sender's and the Group Manager's authentication
+ * credentials (e.g. 118 B + 124 B CCS), the kid context twice and the OSCORE
+ * option, so it does not fit the RFC 8613 sized buffers.
+ */
+#define E_AAD_BUF_LEN 512 /* length of external_aad_buffer */
+#define AAD_BUF_LEN (E_AAD_BUF_LEN + 32) /* length of aad_buffer */
 
 static oscore_ctx_t *coap_oscore_init(coap_context_t *c_context,
                                       coap_oscore_conf_t *oscore_conf);
@@ -419,7 +426,7 @@ coap_oscore_new_pdu_encrypted_lkd(coap_session_t *session,
   uint32_t observe_value = 0;
   oscore_association_t *association = NULL;
   oscore_sender_ctx_t *snd_ctx;
-  uint8_t external_aad_buffer[200];
+  uint8_t external_aad_buffer[E_AAD_BUF_LEN];
   coap_bin_const_t external_aad;
   uint8_t oscore_option[48];
   size_t oscore_option_len;
@@ -971,6 +978,39 @@ fail_resp:
   return;
 }
 
+/*
+ * Replay state of a Recipient Context before an incoming message advanced it.
+ * Restored when the message then fails verification (RFC 8613 8.2 Step 6 /
+ * 8.4 Step 5; Group OSCORE 7.2 / 7.4: "SHALL NOT update the Replay Window").
+ * Unlike oscore_roll_back_seq(), a saved value of 0 is restored as well and
+ * nothing is restored unless this message saved it.
+ */
+typedef struct {
+  uint64_t last_seq;
+  uint64_t sliding_window;
+  uint8_t initial_state;
+  uint8_t saved;
+} oscore_replay_state_t;
+
+static void
+oscore_replay_save(oscore_replay_state_t *st, const oscore_recipient_ctx_t *rcp) {
+  st->last_seq = rcp->last_seq;
+  st->sliding_window = rcp->sliding_window;
+  st->initial_state = rcp->initial_state;
+  st->saved = 1;
+}
+
+static void
+oscore_replay_restore(oscore_replay_state_t *st, oscore_recipient_ctx_t *rcp) {
+  if (!st->saved)
+    return;
+  rcp->last_seq = st->last_seq;
+  rcp->sliding_window = st->sliding_window;
+  rcp->initial_state = st->initial_state;
+  st->saved = 0;
+  coap_log_oscore("OSCORE: replay state restored after verification failure\n");
+}
+
 /* pdu contains incoming message with encrypted COSE ciphertext payload
  * function returns decrypted message
  * and verifies signature, if present
@@ -979,6 +1019,26 @@ fail_resp:
 coap_pdu_t *
 coap_oscore_decrypt_pdu(coap_session_t *session,
                         coap_pdu_t *pdu) {
+  return coap_oscore_decrypt_pdu_ext(session, pdu, 0);
+}
+
+/*
+ * As coap_oscore_decrypt_pdu(), with flags.
+ *
+ * COAP_OSCORE_DECRYPT_NO_REPLAY (requests only): verify-only processing of
+ * a request that is not received as a request, e.g. the phantom observation
+ * request of draft-ietf-core-observe-multicast-notifications, Section 9.3.1:
+ * - no replay check (RFC 8613 8.2 Step 3 skipped);
+ * - the Recipient Context replay state (last_seq, sliding window, rollback
+ *   values, initial_state) is neither read nor written;
+ * - no Appendix B.1.2 / B.2 processing, no association (Token space), no
+ *   change to the session, and nothing is sent (no error response, no ACK).
+ * Replay protection of every other message is unchanged.
+ */
+coap_pdu_t *
+coap_oscore_decrypt_pdu_ext(coap_session_t *session,
+                            coap_pdu_t *pdu,
+                            uint32_t flags) {
   coap_pdu_t *decrypt_pdu = NULL;
   coap_pdu_t *plain_pdu = NULL;
   const uint8_t *osc_value; /* value of OSCORE option */
@@ -999,13 +1059,15 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
   int got_resp_piv = 0;
   int doing_resp_observe = 0;
   uint8_t coap_request = COAP_PDU_IS_REQUEST(pdu);
+  int no_replay = (flags & COAP_OSCORE_DECRYPT_NO_REPLAY) != 0;
+  oscore_replay_state_t replay_saved = { 0, 0, 0, 0 };
   coap_bin_const_t pdu_token;
   uint8_t *st_encrypt;
   size_t encrypt_len;
   size_t tag_len;
   oscore_recipient_ctx_t *rcp_ctx = NULL;
   oscore_association_t *association = NULL;
-  uint8_t external_aad_buffer[100];
+  uint8_t external_aad_buffer[E_AAD_BUF_LEN];
   coap_bin_const_t external_aad;
   oscore_sender_ctx_t *snd_ctx = NULL;
 #if COAP_CLIENT_SUPPORT
@@ -1016,6 +1078,10 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
   assert(opt);
   if (opt == NULL)
     return NULL;
+  if (no_replay && !coap_request) {
+    coap_log_warn("OSCORE: NO_REPLAY is only defined for requests\n");
+    return NULL;
+  }
 
   if (session->context->p_osc_ctx == NULL) {
     coap_log_warn("OSCORE: Not enabled\n");
@@ -1111,13 +1177,14 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
      */
     if (oscore_decode_option_value(osc_value, osc_size, cose) == 0) {
       coap_log_warn("OSCORE: OSCORE Option cannot be decoded.\n");
-      build_and_send_error_pdu(session,
-                               pdu,
-                               COAP_RESPONSE_CODE(402),
-                               "Failed to decode COSE",
-                               NULL,
-                               NULL,
-                               0);
+      if (!no_replay)
+        build_and_send_error_pdu(session,
+                                 pdu,
+                                 COAP_RESPONSE_CODE(402),
+                                 "Failed to decode COSE",
+                                 NULL,
+                                 NULL,
+                                 0);
       goto error_no_ack;
     }
     osc_ctx = oscore_find_context(session,
@@ -1126,7 +1193,7 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
                                   NULL,
                                   &rcp_ctx);
     if (!osc_ctx) {
-      if (cose->kid_context.length > 0) {
+      if (cose->kid_context.length > 0 && !no_replay) {
         const uint8_t *ptr;
         size_t length;
         /* Appendix B.2 protocol check - Is the recipient key_id known */
@@ -1185,7 +1252,7 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
           osc_ctx = NULL;
         }
       }
-    } else if (session->b_2_step != COAP_OSCORE_B_2_NONE) {
+    } else if (!no_replay && session->b_2_step != COAP_OSCORE_B_2_NONE) {
       session->b_2_step = COAP_OSCORE_B_2_NONE;
       coap_log_oscore("Appendix B.2 server finished\n");
     }
@@ -1193,17 +1260,19 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
       coap_log_err("OSCORE: Security Context not found\n");
       oscore_log_hex_value(COAP_LOG_OSCORE, "key_id", &cose->key_id);
       oscore_log_hex_value(COAP_LOG_OSCORE, "kid_context", &cose->kid_context);
-      build_and_send_error_pdu(session,
-                               pdu,
-                               COAP_RESPONSE_CODE(401),
-                               "Security context not found",
-                               NULL,
-                               NULL,
-                               0);
+      if (!no_replay)
+        build_and_send_error_pdu(session,
+                                 pdu,
+                                 COAP_RESPONSE_CODE(401),
+                                 "Security context not found",
+                                 NULL,
+                                 NULL,
+                                 0);
       goto error_no_ack;
     }
     /* to be used for encryption of returned response later */
-    session->recipient_ctx = rcp_ctx;
+    if (!no_replay)
+      session->recipient_ctx = rcp_ctx;
     snd_ctx = osc_ctx->sender_context;
 
     /*
@@ -1212,9 +1281,16 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
      *
      * Requires in COSE object as appropriate
      *   partial_iv (as received)
+     *
+     * Skipped with COAP_OSCORE_DECRYPT_NO_REPLAY, together with the
+     * last_seq update below.
      */
-    if (rcp_ctx->initial_state == 0 &&
-        !oscore_validate_sender_seq(rcp_ctx, cose)) {
+    if (!no_replay)
+      oscore_replay_save(&replay_saved, rcp_ctx);
+    if (no_replay) {
+      coap_log_oscore("OSCORE: no replay check, replay state unchanged\n");
+    } else if (rcp_ctx->initial_state == 0 &&
+               !oscore_validate_sender_seq(rcp_ctx, cose)) {
       coap_log_warn("OSCORE: Replayed or old message\n");
       build_and_send_error_pdu(session,
                                pdu,
@@ -1225,7 +1301,7 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
                                0);
       goto error_no_ack;
     }
-    if (rcp_ctx->initial_state == 1) {
+    if (!no_replay && rcp_ctx->initial_state == 1) {
       incoming_seq =
           coap_decode_var_bytes8(cose->partial_iv.s, cose->partial_iv.length);
       rcp_ctx->last_seq = incoming_seq;
@@ -1403,8 +1479,10 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
     cose_encrypt0_set_nonce(cose, &nonce);
     /*
      * Set up an association for use in the response
+     * (none with COAP_OSCORE_DECRYPT_NO_REPLAY: no response follows)
      */
-    association = oscore_find_association(session, &pdu_token);
+    association = no_replay ? NULL :
+                  oscore_find_association(session, &pdu_token);
     if (association) {
       /* Refresh the association */
       coap_delete_bin_const(association->nonce);
@@ -1424,7 +1502,8 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
       association->recipient_ctx = rcp_ctx;
       /* So association is not released when handling decrypt */
       association = NULL;
-    } else if (!oscore_new_association(session,
+    } else if (!no_replay &&
+               !oscore_new_association(session,
                                        NULL,
                                        &pdu_token,
                                        rcp_ctx,
@@ -1449,6 +1528,7 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
     } else {
       uint64_t last_seq;
 
+      oscore_replay_save(&replay_saved, rcp_ctx);
       if (rcp_ctx->initial_state == 0 &&
           !oscore_validate_sender_seq(rcp_ctx, cose)) {
         coap_log_warn("OSCORE: Replayed or old message\n");
@@ -1649,14 +1729,16 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
     coap_free_type(COAP_STRING, sig_buffer);
     if (sign_res == 0) {
       coap_log_warn("OSCORE: Signature verification Failure\n");
+      oscore_replay_restore(&replay_saved, rcp_ctx);
       if (coap_request) {
-        build_and_send_error_pdu(session,
-                                 pdu,
-                                 COAP_RESPONSE_CODE(400),
-                                 "Decryption failed",
-                                 NULL,
-                                 NULL,
-                                 0);
+        if (!no_replay)
+          build_and_send_error_pdu(session,
+                                   pdu,
+                                   COAP_RESPONSE_CODE(400),
+                                   "Decryption failed",
+                                   NULL,
+                                   NULL,
+                                   0);
         goto error_no_ack;
       } else {
         coap_handle_event_lkd(session->context,
@@ -1673,7 +1755,10 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
   if (pltxt_size <= 0) {
     coap_log_warn("OSCORE: Decryption Failure, result code: %d \n",
                   (int)pltxt_size);
+    oscore_replay_restore(&replay_saved, rcp_ctx);
     if (coap_request) {
+      if (no_replay)
+        goto error_no_ack; /* nothing was advanced, nothing to roll back */
       build_and_send_error_pdu(session,
                                pdu,
                                COAP_RESPONSE_CODE(400),
@@ -1681,7 +1766,6 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
                                NULL,
                                NULL,
                                0);
-      oscore_roll_back_seq(rcp_ctx);
       goto error_no_ack;
     } else {
       coap_handle_event_lkd(session->context,
@@ -1694,7 +1778,7 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
   assert((size_t)pltxt_size < pdu->alloc_size + pdu->max_hdr_size);
 
   /* Appendix B.2 Trap */
-  if (session->b_2_step == COAP_OSCORE_B_2_STEP_2) {
+  if (!no_replay && session->b_2_step == COAP_OSCORE_B_2_STEP_2) {
     /* Need to update Security Context with new (R2 || ID1) ID Context */
     coap_binary_t *kc =
         coap_new_binary(sizeof(session->oscore_r2) + cose->kid_context.length);
@@ -1730,7 +1814,7 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
     goto error_no_ack;
   }
 #if COAP_CLIENT_SUPPORT
-  if (session->b_2_step == COAP_OSCORE_B_2_STEP_3) {
+  if (!no_replay && session->b_2_step == COAP_OSCORE_B_2_STEP_3) {
     coap_log_oscore("Appendix B.2 client step 3 (R2 || R3)\n");
     coap_pdu_encode_header(plain_pdu, session->proto);
     plain_pdu->actual_token.s = plain_pdu->token;
@@ -1784,7 +1868,7 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
 
 #if COAP_SERVER_SUPPORT
   /* Appendix B.1.2 request Trap */
-  if (coap_request && osc_ctx->rfc8613_b_1_2) {
+  if (coap_request && !no_replay && osc_ctx->rfc8613_b_1_2) {
     if (rcp_ctx->initial_state == 1) {
       opt = coap_check_option(plain_pdu, COAP_OPTION_ECHO, &opt_iter);
       if (opt) {
@@ -1861,7 +1945,8 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
         doing_resp_observe = 1;
         break;
       }
-      association = oscore_find_association(session, &pdu_token);
+      association = no_replay ? NULL :
+                    oscore_find_association(session, &pdu_token);
       if (association) {
         association->is_observe = 1;
         association = NULL;
@@ -1913,7 +1998,7 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
     goto error;
   }
 
-  if (session->b_2_step != COAP_OSCORE_B_2_NONE) {
+  if (!no_replay && session->b_2_step != COAP_OSCORE_B_2_NONE) {
     session->b_2_step = COAP_OSCORE_B_2_NONE;
     coap_log_oscore("Appendix B.2 client finished\n");
   }
@@ -1943,7 +2028,7 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
       }
       goto error_no_ack;
     }
-  } else if (session->doing_b_1_2) {
+  } else if (!no_replay && session->doing_b_1_2) {
     coap_lg_crcv_t *lg_crcv = coap_find_lg_crcv(session, pdu);
 
     if (lg_crcv) {
@@ -1959,7 +2044,8 @@ coap_oscore_decrypt_pdu(coap_session_t *session,
   return decrypt_pdu;
 
 error:
-  coap_send_ack_lkd(session, pdu);
+  if (!no_replay)
+    coap_send_ack_lkd(session, pdu);
 error_no_ack:
   if (association && association->is_observe == 0)
     oscore_delete_association(session, association);
@@ -2205,9 +2291,8 @@ coap_crypto_read_ccs_public_cred(coap_bin_const_t *binary,
               local->pub_raw = coap_new_bin_const(data, elem_size);
               if (!local->pub_raw)
                 goto error;
-              local->pub_der = (coap_bin_const_t *)coap_asn1_pri_key(local->sign_curve, local->pub_raw);
-              if (!local->pub_der)
-                goto error;
+              data += elem_size;
+              data_len -= elem_size;
               break;
             default:
               coap_log_warn("coap_crypto_read_ccs_public_cred: COSE_Key %" PRIi64 " not supported\n", oo);
@@ -2223,34 +2308,40 @@ coap_crypto_read_ccs_public_cred(coap_bin_const_t *binary,
           goto error;
         }
       }
-      if (local->cred_crv == COSE_CURVE_ED25519) {
-        local->sign_hash = COSE_ALGORITHM_SHA_512;
-        local->wire_sign_size = cose_hash_len(local->sign_hash);
-      }
-      if (local->cred_kty && local->cred_crv && local->pub_raw) {
-        uint8_t tmp_cbor[100];
-        uint8_t *ptr = tmp_cbor;
-        size_t tmp_cbor_rem = 100;
-        size_t cbor_len = 0;
+      if (local->cred_kty == COSE_KTY_OKP &&
+          local->cred_crv == COSE_CURVE_ED25519 &&
+          local->pub_raw && local->pub_raw->length == 32) {
+        /* SubjectPublicKeyInfo for an Ed25519 key (RFC 8410) */
+        static const uint8_t spki_ed25519[] = {
+          0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65,
+          0x70, 0x03, 0x21, 0x00
+        };
+        coap_binary_t *der = coap_new_binary(sizeof(spki_ed25519) +
+                                             local->pub_raw->length);
+        coap_crypto_cred_t *cred = NULL;
 
-        cbor_len += oscore_cbor_put_map(&ptr, &tmp_cbor_rem, 3);
-        /* kty */
-        cbor_len += oscore_cbor_put_number(&ptr, &tmp_cbor_rem, 1);
-        cbor_len += oscore_cbor_put_number(&ptr, &tmp_cbor_rem, local->cred_kty);
-        /* crv */
-        cbor_len += oscore_cbor_put_number(&ptr, &tmp_cbor_rem, -1);
-        cbor_len += oscore_cbor_put_number(&ptr, &tmp_cbor_rem, local->cred_crv);
-        /* public key */
-        cbor_len += oscore_cbor_put_number(&ptr, &tmp_cbor_rem, -2);
-        cbor_len += oscore_cbor_put_bytes(&ptr, &tmp_cbor_rem, local->pub_raw->s,
-                                          local->pub_raw->length);
-
-        local->auth_cred = coap_new_bin_const(tmp_cbor, cbor_len);
-        if (!local->auth_cred)
+        if (!der)
           goto error;
-        *public = local;
-        local->cred_type = OSCORE_AUTH_CRED_CCS;
-        coap_delete_bin_const(binary);
+        memcpy(der->s, spki_ed25519, sizeof(spki_ed25519));
+        memcpy(der->s + sizeof(spki_ed25519), local->pub_raw->s,
+               local->pub_raw->length);
+        /* der always gets deleted in coap_crypto_read_asn1_public_cred() */
+        if (!coap_crypto_read_asn1_public_cred((coap_bin_const_t *)der, &cred))
+          goto error;
+        /*
+         * draft-ietf-core-oscore-groupcomm-28 Sections 2.4 and 3.4: the
+         * 'sender_cred' and 'gm_cred' of the external_aad are the original
+         * binary representation of the authentication credential, i.e. the
+         * CCS exactly as provided, not a re-encoding of the COSE Key.
+         */
+        cred->auth_cred = binary;
+        cred->cred_type = OSCORE_AUTH_CRED_CCS;
+        cred->cred_kty = local->cred_kty;
+        cred->cred_crv = local->cred_crv;
+        cred->cred_alg = local->cred_alg;
+        coap_delete_bin_const(local->pub_raw);
+        coap_free_type(COAP_STRING, local);
+        *public = cred;
         return 1;
       }
       coap_log_warn("coap_crypto_read_ccs_public_cred: Not oll of kty, crv and public_key defined\n");
