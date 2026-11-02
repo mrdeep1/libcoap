@@ -177,6 +177,9 @@ typedef enum coap_pdu_signaling_proto_t {
 /* Content formats from RFC 8613 */
 #define COAP_MEDIATYPE_APPLICATION_OSCORE     10001 /* application/oscore */
 
+/* Content formats from draft-ietf-core-observe-multicast-notifications TBC */
+#define COAP_MEDIATYPE_APPLICATION_INFORMATIVE_RESPONSE_CBOR 12 /* application/informative-response+cbor */
+
 /**
  * coap_mid_t is used to store the CoAP Message ID of a CoAP PDU.
  * Valid message ids are 0 to 2^16.  Negative values are error codes.
