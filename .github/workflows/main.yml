@@ -248,24 +248,44 @@ jobs:
           tests/testdriver
           examples/coap-server -? 2>&1 | head -10
 
-  build-linux-sanitizer-32:
+  build-linux-32:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        CC: ["gcc"]
+        TLS: ["no", "openssl", "gnutls", "mbedtls"]
     steps:
       - uses: actions/checkout@v6
       - name: setup
         run: |
           sudo dpkg --add-architecture i386
-          sudo apt-get update && sudo apt-get install -y libcunit1-dev libtool libtool-bin exuberant-ctags build-essential libc6-dev-i386 libcunit1-dev:i386
+          sudo apt-get update && sudo apt-get install -y libtool libtool-bin exuberant-ctags build-essential libc6-dev-i386 libcunit1:i386 libcunit1-dev:i386 libmbedtls-dev:i386 libgnutls28-dev:i386 pkg-config:i386
           ./autogen.sh
-      - name: configure-32
+      - name: configure no-TLS
+        if: matrix.TLS == 'no'
         run: |
-          $GITHUB_WORKSPACE/configure --disable-silent-rules --disable-documentation --enable-examples --enable-tests --disable-dtls --enable-sanitizer --build=i386
+          mkdir build-${{matrix.TLS}}-${{matrix.CC}}
+          cd build-${{matrix.TLS}}-${{matrix.CC}}
+          $GITHUB_WORKSPACE/configure --disable-silent-rules --disable-documentation --enable-examples --enable-tests --disable-dtls --enable-sanitizer CC=${{matrix.CC}} --build=i386
+      - name: configure TLS
+        if: matrix.TLS != 'no'
+        run: |
+          mkdir build-${{matrix.TLS}}-${{matrix.CC}}
+          cd build-${{matrix.TLS}}-${{matrix.CC}}
+          "$GITHUB_WORKSPACE/configure" --disable-silent-rules --disable-documentation --enable-examples --enable-tests --with-${{matrix.TLS}} --enable-sanitizer CC=${{matrix.CC}} --build=i386
       - name: compile
         run: |
-          make EXTRA_CFLAGS=-Werror
-      - name: tests
+          cd build-${{matrix.TLS}}-${{matrix.CC}}
+          make EXTRA_CFLAGS=-Werror && make check EXTRA_CFLAGS=-Werror
+      - name: test
         run: |
+          cd build-${{matrix.TLS}}-${{matrix.CC}}
           tests/testdriver
+          examples/coap-server -? 2>&1 | head -10
+      - name: test TLS
+        if: matrix.TLS != 'no' && matrix.CC == 'gcc'
+        run: |
+          examples/tls_backend_testcases.sh -s build-${{matrix.TLS}}-${{matrix.CC}}/examples/coap-server -c build-${{matrix.TLS}}-${{matrix.CC}}/examples/coap-client -I -F -p 5689
 
   tinydtls-build:
     runs-on: ubuntu-latest
